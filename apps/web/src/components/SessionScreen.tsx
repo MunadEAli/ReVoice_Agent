@@ -29,6 +29,7 @@ export default function SessionScreen({ ownerId }: Props) {
   } | null>(null);
   const [currentRung, setCurrentRung] = useState<number | null>(null);
   const [cueOutcome, setCueOutcome] = useState<string | null>(null);
+  const [activeConcept, setActiveConcept] = useState<{ id: string; label: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function ensureSession() {
@@ -47,6 +48,7 @@ export default function SessionScreen({ ownerId }: Props) {
     setConfirmedLabel(null);
     setCurrentRung(null);
     setCueOutcome(null);
+    setActiveConcept(null);
     try {
       const sid = await ensureSession();
       const result = await api.interpret({
@@ -83,10 +85,11 @@ export default function SessionScreen({ ownerId }: Props) {
     setInputText("");
   }
 
-  async function handleRequestCue(_candidateConceptId: string) {
+  async function handleRequestCue(conceptId: string, conceptLabel: string) {
     if (!attemptId) return;
+    setActiveConcept({ id: conceptId, label: conceptLabel });
     try {
-      const result = await api.requestCue(attemptId, cueOutcome, currentRung, ownerId);
+      const result = await api.requestCue(attemptId, cueOutcome, currentRung, ownerId, conceptId);
       setCue(result);
       setCurrentRung(result.rung);
       setPhase("cue");
@@ -97,15 +100,15 @@ export default function SessionScreen({ ownerId }: Props) {
 
   async function handleCueOutcome(outcome: string) {
     setCueOutcome(outcome);
-    if (outcome === "successful" && candidates[0]) {
-      await handleConfirm(candidates[0].concept_id, candidates[0].label);
+    if (outcome === "successful" && activeConcept) {
+      await handleConfirm(activeConcept.id, activeConcept.label);
     } else if (cue && cue.rung < 4) {
-      // Advance cue
-      const result = await api.requestCue(attemptId!, outcome, currentRung, ownerId);
+      // Advance cue on the same concept
+      const result = await api.requestCue(attemptId!, outcome, currentRung, ownerId, activeConcept?.id);
       setCue(result);
       setCurrentRung(result.rung);
     } else {
-      // Rung 4 exhausted — need user to confirm manually
+      // Rung 4 exhausted — back to candidates for manual confirmation
       setPhase("candidates");
     }
   }
@@ -118,6 +121,7 @@ export default function SessionScreen({ ownerId }: Props) {
     setConfirmedLabel(null);
     setCurrentRung(null);
     setCueOutcome(null);
+    setActiveConcept(null);
     setSessionId(null);
     setAttemptId(null);
     inputRef.current?.focus();
@@ -243,7 +247,7 @@ export default function SessionScreen({ ownerId }: Props) {
                   </button>
                   <button
                     className="btn-ghost"
-                    onClick={() => handleRequestCue(c.concept_id)}
+                    onClick={() => handleRequestCue(c.concept_id, c.label)}
                   >
                     Give me a hint
                   </button>

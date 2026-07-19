@@ -30,6 +30,7 @@ class CueRequest(BaseModel):
     last_outcome: Optional[str] = None
     current_rung: Optional[int] = None
     owner_id: str = "user"
+    concept_id: Optional[str] = None   # which candidate the user clicked "Give me a hint" on
 
 
 @router.post("")
@@ -64,6 +65,7 @@ def request_cue(attempt_id: str, req: CueRequest, db: Session = Depends(get_db))
             last_outcome=req.last_outcome,
             current_rung=req.current_rung,
             owner_id=req.owner_id,
+            concept_id=req.concept_id,
         )
     except ValueError as e:
         raise HTTPException(404, str(e))

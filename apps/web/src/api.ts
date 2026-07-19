@@ -79,7 +79,7 @@ export const api = {
       }
     ),
 
-  requestCue: (attempt_id: string, last_outcome: string | null, current_rung: number | null, owner_id: string) =>
+  requestCue: (attempt_id: string, last_outcome: string | null, current_rung: number | null, owner_id: string, concept_id?: string) =>
     req<{
       cue_event_id: string;
       rung: number;
@@ -88,7 +88,7 @@ export const api = {
       ability_state: AbilityStateView;
     }>(`/interpret/attempts/${attempt_id}/cue`, {
       method: "POST",
-      body: JSON.stringify({ last_outcome, current_rung, owner_id }),
+      body: JSON.stringify({ last_outcome, current_rung, owner_id, concept_id }),
     }),
 
   getInspector: (attempt_id: string) =>

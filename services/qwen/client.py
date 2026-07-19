@@ -82,22 +82,25 @@ def _get_openai_client():
 def _live_propose(signal_text: str, context_bundle: dict) -> List[Candidate]:
     client = _get_openai_client()
 
-    system_prompt = (
-        "You are ReVoice, a memory assistance agent. "
-        "Given a partial description or stand-in phrase from a user, "
-        "propose up to 3 candidate concept labels they might be trying to communicate. "
-        "For each candidate, give a short plain-language 'why' (one sentence). "
-        "Respond ONLY with valid JSON matching this schema:\n"
-        '{"candidates": [{"concept_id": str, "label": str, "why": str, "confidence": float}]}'
-    )
-
     top_memories = context_bundle.get("top_memories", [])
     memory_text = "\n".join(
-        f"- [{m.get('concept_id')}] {m.get('label')}: {m.get('category')}"
+        f"- concept_id: \"{m.get('concept_id')}\" | label: \"{m.get('label')}\" | category: {m.get('category')}"
         for m in top_memories
     )
 
-    user_content = f"Input: {signal_text}\n\nKnown concepts:\n{memory_text}"
+    system_prompt = (
+        "You are ReVoice, a personal memory assistance agent. "
+        "The user has a list of known personal concepts below. "
+        "Given the user's input phrase, select up to 3 candidates FROM THE KNOWN CONCEPTS LIST that best match what they are trying to say. "
+        "You MUST use the exact concept_id values from the list. "
+        "For each candidate, write a short plain-language 'why' (one sentence, personal and specific). "
+        "If none of the known concepts match, you may propose a new one with a generated concept_id. "
+        "Respond ONLY with valid JSON:\n"
+        '{"candidates": [{"concept_id": str, "label": str, "why": str, "confidence": float}]}\n\n'
+        f"Known personal concepts:\n{memory_text if memory_text else '(none yet)'}"
+    )
+
+    user_content = f"User input: \"{signal_text}\"\n\nWhich known concepts might this refer to?"
 
     messages = [
         {"role": "system", "content": system_prompt},

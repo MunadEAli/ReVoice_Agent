@@ -76,6 +76,14 @@ def interpret_input(
     context_bundle = {"top_memories": top_memories, "image_url": image_url}
     qwen_candidates: List[Candidate] = propose_candidate_intents(input_text, context_bundle)
 
+    # Match Qwen candidates back to real DB concepts so cue ladder and ability state work
+    from packages.schemas.models import Concept as ConceptModel
+    db_concepts = db.query(ConceptModel).filter(
+        ConceptModel.owner_id == owner_id,
+        ConceptModel.status == "active",
+    ).all()
+    qwen_candidates = _match_candidates_to_db(qwen_candidates, db_concepts, scored)
+
     # Step 3: create attempt row (not yet confirmed)
     attempt_id = str(uuid.uuid4())
     latency_ms = int((_now_dt() - t_start).total_seconds() * 1000)
@@ -136,6 +144,81 @@ def interpret_input(
         "candidates": candidate_scores_payload,
         "latency_ms": latency_ms,
     }
+
+
+def _match_candidates_to_db(
+    qwen_candidates: List[Candidate],
+    db_concepts: list,
+    scored: List[ScoredCandidate],
+) -> List[Candidate]:
+    """
+    Map Qwen's returned candidates to real database concepts.
+    Qwen sometimes ignores our concept_ids and invents its own labels.
+    Priority: exact concept_id match → exact label match → partial label match → keep as-is.
+    """
+    db_by_id = {c.id: c for c in db_concepts}
+    db_by_label = {c.label.lower(): c for c in db_concepts}
+
+    matched = []
+    for qc in qwen_candidates:
+        # 1. Exact concept_id match (Qwen followed instructions)
+        if qc.concept_id in db_by_id:
+            matched.append(qc)
+            continue
+
+        # 2. Exact label match (case-insensitive)
+        db_hit = db_by_label.get(qc.label.lower())
+        if db_hit:
+            matched.append(Candidate(
+                concept_id=db_hit.id,
+                label=db_hit.label,
+                why=qc.why,
+                confidence=qc.confidence,
+            ))
+            continue
+
+        # 3. Partial label match — Qwen said "granddaughter", we have "Lily"
+        #    Use the top scored concept whose label appears in Qwen's label or vice versa
+        partial = None
+        for s in scored:
+            if (s.label.lower() in qc.label.lower() or
+                    qc.label.lower() in s.label.lower() or
+                    any(w in qc.label.lower() for w in s.label.lower().split() if len(w) > 3)):
+                partial = db_by_id.get(s.concept_id)
+                break
+        if partial:
+            matched.append(Candidate(
+                concept_id=partial.id,
+                label=partial.label,
+                why=qc.why,
+                confidence=qc.confidence,
+            ))
+            continue
+
+        # 4. No match — keep Qwen's candidate as-is (new concept not yet in DB)
+        matched.append(qc)
+
+    # Deduplicate by concept_id, keep highest confidence
+    seen: dict[str, Candidate] = {}
+    for c in matched:
+        if c.concept_id not in seen or c.confidence > seen[c.concept_id].confidence:
+            seen[c.concept_id] = c
+
+    # Fill remaining slots with top scored DB concepts not already included
+    if len(seen) < 3:
+        for s in scored:
+            if s.concept_id not in seen and s.concept_id in db_by_id:
+                db_c = db_by_id[s.concept_id]
+                seen[s.concept_id] = Candidate(
+                    concept_id=db_c.id,
+                    label=db_c.label,
+                    why=f"This is one of your known {db_c.category} concepts.",
+                    confidence=round(s.total, 2),
+                )
+            if len(seen) >= 3:
+                break
+
+    return list(seen.values())[:3]
 
 
 def _score_breakdown(scored: List[ScoredCandidate], concept_id: str) -> dict:
@@ -241,12 +324,14 @@ def next_cue(
     last_outcome: Optional[str] = None,
     current_rung: Optional[int] = None,
     owner_id: str = "user",
+    concept_id: Optional[str] = None,
 ) -> dict:
     attempt = db.query(Attempt).filter(Attempt.id == attempt_id).first()
     if not attempt:
         raise ValueError(f"Attempt {attempt_id} not found")
 
-    concept_id = attempt.concept_id or (
+    # Use explicitly clicked concept, then confirmed concept, then first candidate
+    concept_id = concept_id or attempt.concept_id or (
         json.loads(attempt.candidate_concept_ids or "[]") or [None]
     )[0]
 
