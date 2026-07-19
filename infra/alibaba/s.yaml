@@ -1,0 +1,40 @@
+edition: 3.0.0
+name: revoice-agent
+access: default
+
+vars:
+  region: ${env(FC_REGION, 'ap-southeast-1')}
+  image: ${env(REGISTRY_IMAGE, 'registry.ap-southeast-1.aliyuncs.com/your-namespace/revoice:latest')}
+
+resources:
+  revoice-api:
+    component: fc3
+    props:
+      region: ${vars.region}
+      functionName: revoice-api
+      description: ReVoice multimodal memory agent API
+      runtime: custom-container
+      code:
+        imageUri: ${vars.image}
+      timeout: 60
+      memorySize: 512
+      cpu: 0.5
+      diskSize: 512
+      instanceConcurrency: 10
+      environmentVariables:
+        USE_MOCK_QWEN: 'true'
+        DATABASE_URL: sqlite:///./revoice.db
+        # Set real keys at deploy time via:
+        # s cli fc3 invoke --env DASHSCOPE_API_KEY=... etc.
+      triggers:
+        - triggerName: http-trigger
+          triggerType: http
+          triggerConfig:
+            methods:
+              - GET
+              - POST
+              - PATCH
+              - DELETE
+              - OPTIONS
+            authType: anonymous
+            disableURLInternet: false
