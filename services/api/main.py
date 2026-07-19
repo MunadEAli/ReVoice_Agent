@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from packages.schemas.db import create_tables
+from services.api.routes import sessions, concepts, interpret, reviews, inspector
 
 app = FastAPI(title="ReVoice API", version="0.1.0")
 
@@ -27,16 +28,11 @@ def health():
     return {"status": "ok", "service": "revoice-api"}
 
 
-# Import and include routers (added in Phase 4)
-try:
-    from services.api.routes import sessions, concepts, interpret, reviews, inspector
-    app.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
-    app.include_router(concepts.router, prefix="/concepts", tags=["concepts"])
-    app.include_router(interpret.router, prefix="/interpret", tags=["interpret"])
-    app.include_router(reviews.router, prefix="/reviews", tags=["reviews"])
-    app.include_router(inspector.router, prefix="/inspector", tags=["inspector"])
-except ImportError:
-    pass  # routes not yet built
+app.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
+app.include_router(concepts.router, prefix="/concepts", tags=["concepts"])
+app.include_router(interpret.router, prefix="/interpret", tags=["interpret"])
+app.include_router(reviews.router, prefix="/reviews", tags=["reviews"])
+app.include_router(inspector.router, prefix="/inspector", tags=["inspector"])
 
 # Serve built frontend (Phase 9+)
 _static = Path(__file__).parent / "static"
