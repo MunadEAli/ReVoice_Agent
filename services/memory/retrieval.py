@@ -29,24 +29,6 @@ def _load_policies(db: Session, requester: str) -> List[dict]:
     ]
 
 
-def _load_cue_history(db: Session, concept_ids: List[str]) -> List[CueHistoryEntry]:
-    rows = (
-        db.query(CueEvent)
-        .join(CueEvent.attempt_id == CueEvent.attempt_id)   # self-join placeholder
-        .all()
-    )
-    # Simpler: load all cue events then filter
-    all_cues = db.query(CueEvent).all()
-    result = []
-    for c in all_cues:
-        result.append(CueHistoryEntry(
-            concept_id="",    # filled in below via attempt→concept join
-            category="",
-            context="",
-            outcome=c.outcome or "no_retrieval",
-            rung=c.rung,
-        ))
-    return result
 
 
 def retrieve_scored_candidates(

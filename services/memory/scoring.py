@@ -3,15 +3,22 @@ Recovery-Path Similarity Score — the core retrieval algorithm.
 
 score(m, task) = w1*relevance + w2*salience + w3*recovery_similarity
                 + w4*uncertainty_value + w5*recency_transfer - w6*cost
+
+Key design choices:
+- relevance uses semantic category expansion to handle word-finding substitutions
+  (e.g. "granddaughter" → person category, "blue paper" → document category)
+  plus difflib fuzzy matching for typos and partial phrases
+- recovery_similarity weights recent cue events more and rewards efficiency
+  (a success at rung 1 = more independent than a success at rung 4)
+- cost penalty keeps high-token media concepts from crowding the context window
 """
 from __future__ import annotations
 
-import json
+import difflib
 from dataclasses import dataclass, field
 from typing import List, Optional
 
 
-# Default weights (sum to 0.95 before cost subtraction; cost is penalty)
 W1_RELEVANCE = 0.30
 W2_SALIENCE = 0.20
 W3_RECOVERY_SIM = 0.20
@@ -71,6 +78,52 @@ class TaskContext:
     active_concept_categories: List[str] = field(default_factory=list)
 
 
+# ─── Semantic category expansion ─────────────────────────────────────────────
+# Maps concept categories to common word-finding substitution words that a user
+# with word-retrieval difficulties might use instead of the actual concept label.
+# This is the primary mechanism for handling "granddaughter" → Lily (person).
+
+_CATEGORY_EXPANSIONS: dict[str, set] = {
+    "person": {
+        "granddaughter", "grandson", "daughter", "son", "sister", "brother",
+        "wife", "husband", "mother", "father", "aunt", "uncle", "cousin",
+        "friend", "neighbor", "neighbour", "doctor", "nurse", "teacher",
+        "colleague", "family", "relative", "lady", "man", "woman", "person",
+        "child", "kid", "boy", "girl", "baby", "young", "old", "someone",
+        "who", "he", "she", "they", "the one", "that person", "someone i know",
+    },
+    "document": {
+        "paper", "form", "letter", "card", "certificate", "file", "thing",
+        "blue", "white", "yellow", "green", "red", "the form", "document",
+        "page", "sheet", "booklet", "folder", "packet", "paperwork",
+        "that paper", "the paper", "the document", "the file",
+    },
+    "order": {
+        "drink", "food", "meal", "usual", "regular", "order", "menu",
+        "coffee", "tea", "water", "juice", "soda", "lemonade", "beverage",
+        "what i have", "what i get", "cafe", "café", "restaurant", "snack",
+        "lunch", "breakfast", "dinner", "the usual", "my usual",
+    },
+    "place": {
+        "place", "building", "location", "room", "hospital", "clinic",
+        "office", "store", "shop", "there", "where", "that place",
+        "center", "centre", "hall", "church", "school", "bank", "pharmacy",
+        "the place", "that building", "the one on", "nearby",
+    },
+    "medication": {
+        "pill", "medicine", "tablet", "drug", "medication", "dose", "capsule",
+        "what i take", "the one i take", "morning thing", "evening thing",
+        "my pill", "the pill", "prescription", "daily", "morning", "evening",
+    },
+    "event": {
+        "thing", "event", "appointment", "meeting", "visit", "party",
+        "birthday", "when", "that day", "upcoming", "gathering", "occasion",
+        "celebration", "ceremony", "outing", "the thing", "next week",
+        "tomorrow", "soon", "coming up", "scheduled",
+    },
+}
+
+
 # ─── Gate checks ────────────────────────────────────────────────────────────
 
 def _check_consent(concept: ConceptSnapshot, requester: str, operation: str,
@@ -88,26 +141,60 @@ def _check_consent(concept: ConceptSnapshot, requester: str, operation: str,
 # ─── Component functions ─────────────────────────────────────────────────────
 
 def _relevance(concept: ConceptSnapshot, task: TaskContext) -> float:
-    """Keyword / category overlap between input and concept."""
+    """
+    Relevance of a concept to the task input.
+
+    Three layers:
+    1. Category semantic expansion — handles word-finding substitutions where
+       the user says 'granddaughter' to mean a specific person named Lily.
+    2. Label keyword / substring matching — exact and partial.
+    3. Fuzzy token matching — handles typos and truncated words.
+    """
     score = 0.0
     text = (task.input_text or "").lower()
     label = (concept.label or "").lower()
-
-    # Category hint match
-    if task.input_category_hint and task.input_category_hint == concept.category:
-        score += 0.5
-
-    # Label words in input
     label_words = set(label.split())
-    input_words = set(text.split())
-    if label_words & input_words:
-        score += 0.3
+    input_words = set(w.strip(".,!?'-") for w in text.split() if w.strip(".,!?'-"))
 
-    # Partial / substring match
-    if label in text or any(w in text for w in label_words if len(w) > 3):
-        score += 0.2
+    if not text.strip():
+        return 0.0
 
-    return min(1.0, score)
+    # 1. Category hint (strong external signal — session context flagged this category)
+    if task.input_category_hint and task.input_category_hint == concept.category:
+        score += 0.35
+
+    # 2. Semantic category expansion — the key mechanism for word-finding substitutions
+    expansions = _CATEGORY_EXPANSIONS.get(concept.category, set())
+    matched_exp = input_words & expansions
+    if matched_exp:
+        # Scale with number of matched expansion words, capped at 0.35
+        score += min(0.35, 0.18 * len(matched_exp))
+
+    # 3a. Exact label in input text (strongest direct signal)
+    if label in text:
+        score += 0.40
+    # 3b. Any significant label word appears in the input
+    elif any(w in text for w in label_words if len(w) > 3):
+        score += 0.25
+    # 3c. Any overlap of label tokens with input tokens
+    elif label_words & input_words:
+        score += 0.12
+
+    # 4. Fuzzy token-level matching (handles typos and partial words)
+    best_fuzzy = 0.0
+    for iw in input_words:
+        if len(iw) < 4:
+            continue
+        for lw in label_words:
+            if len(lw) < 3:
+                continue
+            r = difflib.SequenceMatcher(None, iw, lw).ratio()
+            if r > best_fuzzy:
+                best_fuzzy = r
+    if best_fuzzy > 0.65:
+        score += best_fuzzy * 0.20
+
+    return min(1.0, round(score, 4))
 
 
 def _salience(concept: ConceptSnapshot, task: TaskContext) -> float:
@@ -119,15 +206,41 @@ def _salience(concept: ConceptSnapshot, task: TaskContext) -> float:
 
 def _recovery_similarity(concept: ConceptSnapshot, task: TaskContext,
                           cue_history: List[CueHistoryEntry]) -> float:
-    """Success rate of the most similar past cue sequence for this concept."""
+    """
+    How well does this concept's past recovery pattern match the current task?
+
+    Improvements over a plain success rate:
+    - Rung efficiency: rung-1 success (photo only) = 1.0, rung-4 (full reveal) = 0.25
+      because lower rung = more independent retrieval = stronger memory trace
+    - Recency weighting: more recent episodes count more than older ones
+    - Partial retrieval counts for partial credit (0.25)
+    """
     relevant = [
         e for e in cue_history
         if e.concept_id == concept.concept_id or e.category == concept.category
     ]
     if not relevant:
         return 0.0
-    successful = sum(1 for e in relevant if e.outcome == "successful")
-    return successful / len(relevant)
+
+    n = len(relevant)
+    total_weight = 0.0
+    weighted_score = 0.0
+
+    for i, e in enumerate(relevant):
+        # Recency weight: entries at the end of the list are most recent → higher weight
+        recency_w = 0.40 + 0.60 * (i / max(1, n - 1))
+
+        if e.outcome == "successful":
+            # Efficiency: rung 1 = 1.0 (most independent), rung 4 = 0.25 (needed reveal)
+            efficiency = max(0.25, (5 - e.rung) / 4.0)
+            weighted_score += recency_w * efficiency
+        elif e.outcome == "partial_retrieval":
+            weighted_score += recency_w * 0.25
+        # no_retrieval contributes 0
+
+        total_weight += recency_w
+
+    return round(weighted_score / total_weight, 4) if total_weight > 0 else 0.0
 
 
 def _uncertainty_value(ability: Optional[AbilitySnapshot]) -> float:
@@ -151,7 +264,7 @@ def _cost(concept: ConceptSnapshot) -> float:
     """Cost penalty based on estimated tokens this memory adds to the Qwen prompt."""
     tokens = concept.estimated_tokens
     if concept.media_url:
-        tokens = max(tokens, 300)    # images are expensive in context
+        tokens = max(tokens, 300)
     return W6_COST_PER_100_TOKENS * (tokens / 100)
 
 
@@ -168,7 +281,6 @@ def score_concept(
 ) -> ScoredCandidate:
     """Score one concept. Always returns a ScoredCandidate; sets excluded=True if gated out."""
 
-    # Gate 1: consent
     if not _check_consent(concept, requester, operation, policies):
         return ScoredCandidate(
             concept_id=concept.concept_id, label=concept.label,
@@ -178,7 +290,6 @@ def score_concept(
             excluded=True, exclusion_reason="consent_denied",
         )
 
-    # Gate 2: superseded concepts are always excluded
     if concept.status == "superseded":
         return ScoredCandidate(
             concept_id=concept.concept_id, label=concept.label,

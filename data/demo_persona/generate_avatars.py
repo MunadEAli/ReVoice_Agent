@@ -1,8 +1,6 @@
 """
 Generate simple colored-circle initials avatars for the demo persona using Pillow.
 Saves PNGs to data/demo_persona/avatars/ and optionally uploads to OSS.
-
-Personas: Lily (L), David (D), Carol (C), Margaret (M - the user)
 """
 from __future__ import annotations
 
@@ -13,10 +11,21 @@ from PIL import Image, ImageDraw, ImageFont
 AVATARS_DIR = Path(__file__).parent / "avatars"
 
 PERSONA_COLORS = {
-    "lily":     ("#F4A261", "#FFFFFF"),   # warm orange, white text
-    "david":    ("#457B9D", "#FFFFFF"),   # steel blue, white text
-    "carol":    ("#6D6875", "#FFFFFF"),   # muted purple, white text
-    "margaret": ("#2D6A4F", "#FFFFFF"),   # forest green, white text
+    # Margaret's world
+    "lily":             ("#F4A261", "#FFFFFF"),   # warm orange
+    "michael":          ("#457B9D", "#FFFFFF"),   # steel blue
+    "margaret":         ("#2D6A4F", "#FFFFFF"),   # forest green
+    "riverside_clinic": ("#6D6875", "#FFFFFF"),   # muted purple
+    "metformin":        ("#E07A5F", "#FFFFFF"),   # terracotta
+    "lily_birthday":    ("#F2CC8F", "#1A1A1A"),   # gold
+    # James's world
+    "james":            ("#264653", "#FFFFFF"),   # dark teal
+    "sarah":            ("#E9C46A", "#1A1A1A"),   # warm yellow
+    "community_center": ("#2A9D8F", "#FFFFFF"),   # teal
+    # Shared
+    "iced_tea":         ("#A8DADC", "#1A1A1A"),   # light cyan
+    "insurance_form":   ("#CDB4DB", "#1A1A1A"),   # soft lavender
+    "black_coffee":     ("#4A4E69", "#FFFFFF"),   # dark purple
 }
 
 SIZE = 256
@@ -25,22 +34,19 @@ SIZE = 256
 def _draw_avatar(initial: str, bg_color: str, fg_color: str) -> Image.Image:
     img = Image.new("RGB", (SIZE, SIZE), bg_color)
     draw = ImageDraw.Draw(img)
-
-    # Draw circle background
     draw.ellipse([0, 0, SIZE - 1, SIZE - 1], fill=bg_color)
 
-    # Try to use a bold font; fall back to default
     font = None
     font_size = 120
-    try:
-        font = ImageFont.truetype("arial.ttf", font_size)
-    except (IOError, OSError):
+    for font_path in ["arial.ttf", "C:/Windows/Fonts/ariblk.ttf", "C:/Windows/Fonts/arialbd.ttf"]:
         try:
-            font = ImageFont.truetype("C:/Windows/Fonts/ariblk.ttf", font_size)
+            font = ImageFont.truetype(font_path, font_size)
+            break
         except (IOError, OSError):
-            font = ImageFont.load_default()
+            continue
+    if font is None:
+        font = ImageFont.load_default()
 
-    # Center text
     bbox = draw.textbbox((0, 0), initial, font=font)
     tw = bbox[2] - bbox[0]
     th = bbox[3] - bbox[1]
@@ -52,7 +58,7 @@ def _draw_avatar(initial: str, bg_color: str, fg_color: str) -> Image.Image:
 
 
 def generate_all(upload: bool = False) -> dict[str, str]:
-    """Generate all avatars, upload if `upload=True`, return {name: url} map."""
+    """Generate all avatars, upload if upload=True, return {name: url} map."""
     AVATARS_DIR.mkdir(parents=True, exist_ok=True)
 
     urls = {}
@@ -61,13 +67,13 @@ def generate_all(upload: bool = False) -> dict[str, str]:
         img = _draw_avatar(initial, bg, fg)
         path = AVATARS_DIR / f"{name}.png"
         img.save(str(path))
-        print(f"Saved avatar: {path}")
+        print(f"  Avatar: {path}")
 
         if upload:
             from services.storage.oss_client import upload_file
             object_key = f"avatars/{name}.png"
             url = upload_file(str(path), object_key)
-            print(f"Uploaded {name}: {url}")
+            print(f"  Uploaded {name}: {url}")
             urls[name] = url
         else:
             urls[name] = f"file://{path.as_posix()}"

@@ -64,6 +64,7 @@ export const api = {
     context?: string;
     category_hint?: string;
     active_categories?: string[];
+    image_url?: string;
   }) =>
     req<{ attempt_id: string; candidates: Candidate[]; latency_ms: number }>("/interpret", {
       method: "POST",
@@ -106,7 +107,10 @@ export const api = {
     }),
 
   getReview: (user_id: string) =>
-    req<{ user_id: string; summary: string; ability_states: AbilityStateView[] }>(
-      `/reviews/${user_id}`
-    ),
+    req<{
+      user_id: string;
+      summary: string;
+      ability_states: Array<AbilityStateView & { label: string; category: string; media_url: string | null }>;
+      session_count: number;
+    }>(`/reviews/${user_id}`),
 };
