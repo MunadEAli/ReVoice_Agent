@@ -10,14 +10,14 @@ The result is a memory agent that adapts across sessions. It can hide the answer
 
 | Requirement | ReVoice implementation |
 |---|---|
-| Persistent memory | SQLite/SQLAlchemy stores users, concepts, sessions, attempts, cue events, ability states, cue preferences, corrections, policies, and audits |
-| Learns from experience | Successful/failed cue outcomes update concept ability and user/category cue preferences |
-| Better decisions over time | Future Qwen hint prompts include learned cue preferences, including for newly added concepts |
-| Efficient retrieval | Recovery-Path Similarity Score packs only top memories into Qwen context |
-| Timely forgetting/correction | Superseded concepts are excluded; uncertainty grows after long gaps |
-| Limited context windows | High-cost irrelevant media is penalized before Qwen context packing |
-| Human checkpoint | Every candidate requires explicit confirmation |
-| Qwen Cloud usage | Candidate reasoning, vision grounding, adaptive cue planning, and review summaries |
+| Persistent memory | SQLite/SQLAlchemy stores users, concepts, sessions, attempts, cue events, ability states, cue preferences, corrections, policies, and audits across sessions |
+| Learns from experience | Successful/failed cue outcomes update per-concept assistance level and per-user/category cue preferences |
+| Better decisions over time | Future Qwen hint prompts include learned cue preferences — even for newly added concepts that inherit what worked for similar past ones |
+| Efficient retrieval | Recovery-Path Similarity Score (6 weighted factors with a semantic relevance gate) packs only the most relevant memories into Qwen context |
+| Timely forgetting/correction | Superseded concepts are excluded; uncertainty grows after gaps longer than 7 days; Correction screen creates an audit trail |
+| Limited context windows | Relevance gate suppresses history boosts for zero-relevance concepts; high-cost media adds token penalty |
+| Human checkpoint | Every candidate requires explicit confirmation before ability state is updated |
+| Qwen Cloud usage | qwen-max for candidate reasoning and progress summaries; qwen-vl-max for image grounding; qwen-turbo for adaptive cue-bank generation |
 
 ## Core Demo
 
@@ -56,6 +56,25 @@ DASHSCOPE_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
 ```
 
 The Memory Inspector shows Qwen mode/model metadata during the demo.
+
+## Research Grounding For Cues
+
+ReVoice's cue prompt is not arbitrary. It is inspired by common word-retrieval and communication-support strategies used in aphasia and dementia care:
+
+- **Semantic feature cues:** describe category, function, location, relationships, and sensory features before revealing the word.
+- **Sentence completion:** provide a natural sentence with a blank to support retrieval.
+- **Phonological/orthographic cues:** first sound, first letters, masked word shape, and rhythm/tapping.
+- **Visual and autobiographical cues:** photos, personal relationships, routines, and familiar places.
+- **Wait-before-reveal:** give the person time and avoid immediately correcting or overprompting.
+
+ReVoice is not a diagnostic or treatment tool. The research grounding informs the cue-generation prompt and safety rules, while the app remains an assistive memory workflow with explicit user confirmation.
+
+Useful references:
+
+- ASHA Aphasia Practice Portal: https://www.asha.org/practice-portal/clinical-topics/aphasia/
+- Alzheimer’s Association communication and memory-loss caregiving guidance: https://www.alz.org/help-support/caregiving/stages-behaviors/memory-loss-confusion
+- Aphasia.com word-retrieval therapy overview: https://aphasia.com/navigating-aphasia/aphasia-therapy/word-retrieval/
+- Lexical retrieval treatment research overview: https://pmc.ncbi.nlm.nih.gov/articles/PMC6802912/
 
 ## Screens
 
@@ -135,9 +154,24 @@ Required proof files:
 
 For final demo, deploy first, then record the video from the deployed URL with `USE_MOCK_QWEN=false`.
 
+## Scoring Algorithm
+
+The Recovery-Path Similarity Score ranks each concept before packing it into Qwen context:
+
+```
+score = 0.30·relevance + 0.20·salience + 0.20·recovery_similarity
+      + 0.10·uncertainty + 0.10·recency_transfer − 0.02·cost_per_100_tokens
+```
+
+**Relevance gate:** concepts with zero semantic relevance to the input (no keyword, personal cue, or category-expansion match) have their history-based components suppressed. A well-practised document cannot outscore a relevant person concept when the user types "granddaughter" — the algorithm penalises history divergence from semantic signal.
+
+**Personal cues:** relationships stored in the DB (e.g. `grandchild_of`) expand to word-finding substitutions ("granddaughter", "grand daughter", "grandchild"). This binds stand-in words to specific people without hardcoding anything.
+
+**Adaptive weights:** `recovery_similarity` rewards rung-1 independent recalls (efficiency = 1.0) more than rung-4 full reveals (0.25), and weights recent episodes more heavily than older ones.
+
 ## Submission Description
 
-ReVoice is a Qwen-powered adaptive memory agent for people with word-finding difficulty. It remembers not only facts, but the recovery path that helped a user retrieve a word: semantic cues, personal context, sentence completion, first sounds, and final reveal. It learns from successful and failed cue outcomes, adapts future Qwen hint plans to each user, hides answers before final reveal, and exposes its reasoning in a live Memory Inspector. Built for the MemoryAgent track, ReVoice demonstrates persistent memory, efficient retrieval under context limits, explicit human confirmation, safety gates, correction handling, and Alibaba Cloud deployment readiness.
+ReVoice is a Qwen-powered adaptive memory agent for people with word-finding difficulty. It stores not just facts, but the recovery path: which cues helped this person retrieve this word, at which rung, in which context. It learns from cue outcomes, adapts future Qwen hint plans to each user's cue-style preferences — including for brand-new concepts that inherit what worked for past ones — hides answers before recall to protect practice, and exposes its full reasoning in a live Memory Inspector. The scoring algorithm uses a semantic relevance gate so history never overrides semantic signal. Built for Track 1: MemoryAgent, ReVoice demonstrates persistent cross-session memory, efficient retrieval under context limits, explicit human confirmation checkpoints, consent-based safety gates, correction handling with audit trails, and production deployment on Alibaba Cloud.
 
 ## License
 
