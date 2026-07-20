@@ -32,14 +32,53 @@ The result is a memory agent that adapts across sessions. It can hide the answer
    - user/category-level cue preferences
 8. Future hints for Margaret, including newly added people, are biased toward cue styles that helped her before.
 
-## Qwen Cloud Usage
+## Qwen Cloud Usage — Models, Custom Skills, and MCP
 
-`services/qwen/client.py` uses DashScope's OpenAI-compatible API.
+`services/qwen/client.py` uses DashScope's OpenAI-compatible API with three Qwen models and an agentic tool-calling loop.
 
-- `qwen-max`: candidate reasoning over packed memory context.
-- `qwen-vl-max`: image-grounded input when the user uploads a photo.
-- `qwen-turbo`: adaptive cue-bank generation.
-- `qwen-max`: nonclinical progress summaries.
+### Models
+
+- `qwen-max`: candidate reasoning (with tool calls) and nonclinical progress summaries.
+- `qwen-vl-max`: image-grounded candidate reasoning when the user uploads a photo.
+- `qwen-turbo`: adaptive cue-bank generation (fast, lower cost).
+
+### Custom Skills (Tool Calling)
+
+During candidate reasoning, `qwen-max` has access to a custom skill called `inspect_concept`. When Qwen is uncertain whether a stand-in word matches a specific person or item, it calls this skill to retrieve relationship context (e.g. "grandchild_of Michael") before committing to a candidate. This is a genuine agentic loop — Qwen decides autonomously whether to call the tool, executes up to three rounds, then returns its final JSON answer.
+
+```
+Qwen receives: "granddaughter"
+→ Calls inspect_concept("person.lily")
+← Returns: {label: "Lily", relationships: [{relation_type: "grandchild_of", to_concept_id: "person.michael"}]}
+→ Qwen responds: [{concept_id: "person.lily", why: "She is your granddaughter.", confidence: 0.94}]
+```
+
+### MCP Server (Model Context Protocol)
+
+`services/mcp/server.py` implements the MCP streamable-HTTP transport as a native FastAPI router (JSON-RPC 2.0). Any MCP-compatible client can connect to `POST /mcp` and call:
+
+| Tool | Description |
+|---|---|
+| `search_memories` | Keyword search over a user's active memory concepts |
+| `get_concept_details` | Full detail + relationships + ability state for one concept |
+| `get_cue_preferences` | Learned cue strategy scores for a user/category pair |
+| `get_user_progress` | All concept ability levels for a user |
+
+Quick check:
+
+```bash
+# Discover tools
+curl http://localhost:8000/mcp
+
+# Call a tool (MCP JSON-RPC 2.0)
+curl -X POST http://localhost:8000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+
+curl -X POST http://localhost:8000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_memories","arguments":{"owner_id":"margaret","query":"granddaughter"}}}'
+```
 
 For local testing:
 

@@ -197,6 +197,8 @@ def _live_propose(signal_text: str, context_bundle: dict) -> List[Candidate]:
     client = _get_openai_client()
 
     top_memories = context_bundle.get("top_memories", [])
+    concept_details = context_bundle.get("concept_details", {})   # for tool-call lookups
+
     memory_lines = "\n".join(
         f"  - concept_id: \"{m.get('concept_id')}\" | label: \"{m.get('label')}\" | category: {m.get('category')}"
         for m in top_memories
@@ -208,47 +210,110 @@ def _live_propose(signal_text: str, context_bundle: dict) -> List[Candidate]:
         "IMPORTANT: The user communicates using STAND-IN WORDS or descriptions instead of the word they are trying to recall. "
         "For example: 'granddaughter' might mean a specific person named Lily; "
         "'blue paper' might mean an Insurance Form; 'my usual' might mean Iced Tea. "
-        "Your job is to match the user's stand-in phrase to their stored personal concepts. "
-        "\n\n"
+        "Your job is to match the user's stand-in phrase to their stored personal concepts.\n\n"
+        "You have the inspect_concept skill available. Use it to look up the full relationship "
+        "context for any concept you are uncertain about — especially when the stand-in word "
+        "matches a category but you need to confirm the specific person or item.\n\n"
         "Rules:\n"
         "1. Select up to 3 candidates FROM the known concepts list below — use exact concept_id values.\n"
         "2. For each candidate, write a brief, warm, personal 'why' (one sentence, first-person friendly).\n"
-        "3. If a concept clearly does NOT match, exclude it — better to return 1-2 good matches than 3 weak ones.\n"
+        "3. If a concept clearly does NOT match, exclude it — better 1-2 good matches than 3 weak ones.\n"
         "4. Only propose a new concept_id if you are certain none of the known concepts match.\n"
-        "5. Respond ONLY with valid JSON in exactly this format:\n"
-        '   {"candidates": [{"concept_id": "<id>", "label": "<label>", "why": "<one sentence>", "confidence": <0.0-1.0>}]}\n\n'
+        "5. Respond ONLY with valid JSON:\n"
+        '   {"candidates": [{"concept_id": "<id>", "label": "<label>", "why": "<sentence>", "confidence": <0.0-1.0>}]}\n\n'
         f"Known personal concepts:\n{memory_lines if memory_lines else '  (no concepts stored yet)'}"
     )
 
     user_content = (
         f"The person said: \"{signal_text}\"\n\n"
-        "Which of their known personal concepts are they most likely trying to refer to?"
+        "Which of their known personal concepts are they most likely trying to refer to? "
+        "Use inspect_concept if you need more context before deciding."
     )
 
-    messages = [
+    # ── Custom skill definition for the tool-calling loop ────────────────────
+    # Qwen can call inspect_concept(concept_id) to look up relationship context
+    # (e.g. "grandchild_of Michael") before committing to a candidate. Results
+    # are served from concept_details built in the orchestrator — no extra DB call.
+    CUSTOM_SKILLS = [
+        {
+            "type": "function",
+            "function": {
+                "name": "inspect_concept",
+                "description": (
+                    "Look up detailed relationship context for one scored memory concept. "
+                    "Returns the concept label, category, recovery score, and any stored "
+                    "relationships (e.g. 'grandchild_of'). Call this when you need to "
+                    "confirm whether a concept matches the user's stand-in word."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "concept_id": {
+                            "type": "string",
+                            "description": "The concept_id from the known concepts list.",
+                        }
+                    },
+                    "required": ["concept_id"],
+                },
+            },
+        }
+    ]
+
+    is_multimodal = bool(context_bundle.get("image_url"))
+    model = VISION_MODEL if is_multimodal else TEXT_MODEL
+
+    messages: list[dict] = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_content},
     ]
-
-    if context_bundle.get("image_url"):
+    if is_multimodal:
         messages[-1]["content"] = [
             {"type": "text", "text": user_content},
             {"type": "image_url", "image_url": {"url": context_bundle["image_url"]}},
         ]
-        model = VISION_MODEL
-    else:
-        model = TEXT_MODEL
 
-    resp = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        response_format={"type": "json_object"},
-        max_tokens=512,
-        temperature=0.2,
-    )
+    # ── Agentic tool-calling loop ─────────────────────────────────────────────
+    # Qwen may call inspect_concept one or more times before giving its final
+    # JSON answer. We cap at 3 rounds to bound latency.
+    MAX_TOOL_ROUNDS = 3
+    last_msg = None
 
+    for _round in range(MAX_TOOL_ROUNDS):
+        call_kwargs: dict = dict(
+            model=model,
+            messages=messages,
+            max_tokens=512,
+            temperature=0.2,
+        )
+        # Offer tools only on text path (vision model may not support tool calling)
+        if not is_multimodal:
+            call_kwargs["tools"] = CUSTOM_SKILLS
+            call_kwargs["tool_choice"] = "auto"
+
+        resp = client.chat.completions.create(**call_kwargs)
+        last_msg = resp.choices[0].message
+
+        if not is_multimodal and last_msg.tool_calls:
+            # Qwen wants to inspect one or more concepts — fulfil each call
+            messages.append(last_msg)
+            for tc in last_msg.tool_calls:
+                if tc.function.name == "inspect_concept":
+                    args = json.loads(tc.function.arguments or "{}")
+                    cid = args.get("concept_id", "")
+                    detail = concept_details.get(cid, {"error": "concept not in scored set"})
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": json.dumps(detail),
+                    })
+        else:
+            # No tool call — Qwen has produced its final answer
+            break
+
+    # ── Parse final JSON response ─────────────────────────────────────────────
     try:
-        raw = json.loads(resp.choices[0].message.content)
+        content = getattr(last_msg, "content", "") or ""
+        raw = json.loads(content)
         return [
             Candidate(
                 concept_id=c.get("concept_id", ""),
@@ -258,7 +323,7 @@ def _live_propose(signal_text: str, context_bundle: dict) -> List[Candidate]:
             )
             for c in raw.get("candidates", [])
         ][:3]
-    except (json.JSONDecodeError, KeyError, TypeError):
+    except (json.JSONDecodeError, KeyError, TypeError, AttributeError):
         return []
 
 

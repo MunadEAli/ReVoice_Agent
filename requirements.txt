@@ -12,3 +12,7 @@ pytest==8.3.3
 pytest-asyncio==0.24.0
 aiofiles==24.1.0
 python-dotenv==1.0.1
+# mcp package requires pydantic-core>=2.27 which conflicts with the pinned
+# pydantic==2.9.2. The MCP-compatible server is implemented natively in
+# services/mcp/server.py using JSON-RPC 2.0 over FastAPI (no extra package
+# needed). Add: mcp[cli]>=1.0.0 once pydantic is upgraded in a future pass.

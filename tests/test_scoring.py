@@ -172,6 +172,40 @@ def test_caregiver_only_sensitivity_overrides_broad_user_policy():
     assert caregiver_result.excluded is False
 
 
+# ─── Relevance gate: zero-relevance concept cannot beat a relevant one ───────
+
+def test_zero_relevance_concept_cannot_outscore_relevant_one():
+    """Insurance form (zero relevance for 'granddaughter') should not outscore Lily
+    even when the insurance form has perfect recovery history and active salience."""
+    task = TaskContext(
+        input_text="granddaughter",
+        input_category_hint=None,
+        session_context="general",
+        active_concept_categories=["person", "document"],  # both active — document gets full salience
+    )
+
+    lily = _make_concept("person.lily", "Lily", "person")
+    lily.personal_cues = ["granddaughter", "grandchild"]
+
+    insurance = _make_concept("document.insurance_form", "Insurance Form", "document")
+
+    # Give insurance form an excellent recovery history (rung-1 success, rung-2 success)
+    rich_history = [
+        CueHistoryEntry("document.insurance_form", "document", "tuesday_appointment", "successful", 2),
+        CueHistoryEntry("document.insurance_form", "document", "home", "successful", 1),
+    ]
+
+    lily_score = score_concept(lily, task, _make_ability("person.lily", 0.5), [], "user", "read", [])
+    insurance_score = score_concept(insurance, task, _make_ability("document.insurance_form", 0.5),
+                                    rich_history, "user", "read", [])
+
+    assert lily_score.relevance > 0, "lily should have positive relevance for 'granddaughter'"
+    assert insurance_score.relevance == 0.0, "insurance form should have zero relevance for 'granddaughter'"
+    assert lily_score.total > insurance_score.total, (
+        f"lily={lily_score.total:.4f} should beat insurance={insurance_score.total:.4f}"
+    )
+
+
 # ─── Context budget: irrelevant high-cost concept penalized ──────────────────
 
 def test_context_budget_high_token_concept_penalized():

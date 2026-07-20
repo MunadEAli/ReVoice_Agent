@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from packages.schemas.db import create_tables
 from services.api.routes import sessions, concepts, interpret, reviews, inspector
+from services.mcp.server import router as mcp_router
 
 app = FastAPI(title="ReVoice API", version="0.1.0")
 
@@ -38,6 +39,7 @@ app.include_router(concepts.router, prefix="/concepts", tags=["concepts"])
 app.include_router(interpret.router, prefix="/interpret", tags=["interpret"])
 app.include_router(reviews.router, prefix="/reviews", tags=["reviews"])
 app.include_router(inspector.router, prefix="/inspector", tags=["inspector"])
+app.include_router(mcp_router, prefix="/mcp", tags=["mcp"])
 
 # Serve built frontend (Phase 9+)
 _static = Path(__file__).parent / "static"

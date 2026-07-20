@@ -28,7 +28,7 @@ const CONTEXTS = [
 ];
 
 const CONTEXT_CATEGORIES: Record<string, string[]> = {
-  general: ["person", "document", "order", "place", "event"],
+  general: [],      // no context selected — no category gets a salience boost
   home: ["person", "document", "order", "event"],
   cafe_visit: ["order", "person", "place"],
   tuesday_appointment: ["document", "place", "medication"],

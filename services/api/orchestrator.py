@@ -78,8 +78,40 @@ def interpret_input(
         for s in scored
     ]
 
-    # Step 2: call Qwen for candidate meanings
-    context_bundle = {"top_memories": top_memories, "image_url": image_url}
+    # Enrich context_bundle with relationship context for the Qwen tool-calling path.
+    # When Qwen calls the inspect_concept custom skill, the handler looks up the
+    # concept_id here instead of making a live DB call from the Qwen client.
+    scored_ids = [s.concept_id for s in scored]
+    rel_rows = (
+        db.query(Relationship)
+        .filter(Relationship.from_concept_id.in_(scored_ids))
+        .all()
+    ) if scored_ids else []
+    rel_map: dict[str, list] = {cid: [] for cid in scored_ids}
+    for r in rel_rows:
+        if r.from_concept_id in rel_map:
+            rel_map[r.from_concept_id].append(
+                {"relation_type": r.relation_type, "to_concept_id": r.to_concept_id}
+            )
+
+    concept_details = {
+        s.concept_id: {
+            "label": s.label,
+            "category": s.category,
+            "memory_score": s.total,
+            "relevance": s.relevance,
+            "recovery_similarity": s.recovery_similarity,
+            "relationships": rel_map.get(s.concept_id, []),
+        }
+        for s in scored
+    }
+
+    # Step 2: call Qwen for candidate meanings (with tool-calling context)
+    context_bundle = {
+        "top_memories": top_memories,
+        "image_url": image_url,
+        "concept_details": concept_details,
+    }
     qwen_trace = {
         **qwen_runtime_metadata(image_url),
         "input_modalities": input_modalities,

@@ -24,7 +24,14 @@ W2_SALIENCE = 0.20
 W3_RECOVERY_SIM = 0.20
 W4_UNCERTAINTY = 0.10
 W5_RECENCY_TRANSFER = 0.10
-W6_COST_PER_100_TOKENS = 0.05
+W6_COST_PER_100_TOKENS = 0.02
+
+# Concepts below this relevance threshold have no semantic connection to the
+# input. We suppress history-based boosts (salience, recovery_sim,
+# recency_transfer) so a well-practised but unrelated concept cannot outscore
+# a semantically relevant one. A tiny uncertainty-derived score is kept so
+# zero-relevance concepts still appear in the tail of ranked results.
+_MIN_RELEVANCE_THRESHOLD = 0.01
 
 
 @dataclass
@@ -320,14 +327,20 @@ def score_concept(
     rec_trans = _recency_transfer(concept, task, cue_history)
     cost_pen = _cost(concept)
 
-    total = (
-        W1_RELEVANCE * rel
-        + W2_SALIENCE * sal
-        + W3_RECOVERY_SIM * rec_sim
-        + W4_UNCERTAINTY * unc
-        + W5_RECENCY_TRANSFER * rec_trans
-        - cost_pen
-    )
+    if rel < _MIN_RELEVANCE_THRESHOLD:
+        # No semantic connection to the input text. Suppress salience,
+        # recovery-sim, and recency-transfer so history cannot push an
+        # unrelated concept above a semantically relevant one.
+        total = max(0.0, round(W4_UNCERTAINTY * unc * 0.5 - cost_pen, 4))
+    else:
+        total = (
+            W1_RELEVANCE * rel
+            + W2_SALIENCE * sal
+            + W3_RECOVERY_SIM * rec_sim
+            + W4_UNCERTAINTY * unc
+            + W5_RECENCY_TRANSFER * rec_trans
+            - cost_pen
+        )
 
     return ScoredCandidate(
         concept_id=concept.concept_id,
