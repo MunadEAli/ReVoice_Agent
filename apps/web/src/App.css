@@ -33,9 +33,7 @@
   flex-direction: column;
   justify-content: flex-end;
   padding: 44px;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.3), rgba(255, 250, 240, 0.82)),
-    url("./assets/hero.png") center / cover;
+  background: linear-gradient(150deg, var(--accent-strong) 0%, var(--accent) 45%, var(--sage) 100%);
   overflow: hidden;
   position: relative;
 }
@@ -44,7 +42,9 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(23, 32, 38, 0.1), rgba(23, 32, 38, 0.72));
+  background:
+    radial-gradient(circle at 15% 15%, rgba(255, 240, 216, 0.22), transparent 55%),
+    linear-gradient(180deg, rgba(23, 32, 38, 0.05), rgba(23, 32, 38, 0.55));
 }
 
 .login-copy > * {
@@ -55,7 +55,10 @@
 
 .brand-mark {
   width: max-content;
-  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
   border: 1px solid rgba(255, 255, 255, 0.45);
   border-radius: var(--radius);
   font-weight: 800;
@@ -120,7 +123,27 @@
 
 .login-card {
   padding: 28px;
-  align-self: center;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.login-card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+
+.login-card-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .login-card-header {

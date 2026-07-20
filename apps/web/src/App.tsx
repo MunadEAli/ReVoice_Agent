@@ -6,6 +6,24 @@ import "./App.css";
 
 type Screen = "session" | "correction" | "review";
 
+function LogoMark({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <path
+        d="M6 8a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H14l-5.5 5v-5H10a4 4 0 0 1-4-4V8Z"
+        fill="currentColor"
+      />
+      <path
+        d="M12 12.5c0-1.5 1-2.5 2.5-2.5M16 12.5c0-2 1.3-3.5 3-3.5M20 12.5c0-2.5 1.6-4.5 3.5-4.5"
+        stroke="#fff"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        opacity="0.9"
+      />
+    </svg>
+  );
+}
+
 const USERS = [
   {
     id: "margaret",
@@ -52,7 +70,10 @@ export default function App() {
       <div className="login-page">
         <main className="login-panel" aria-labelledby="login-title">
           <section className="login-copy">
-            <div className="brand-mark">ReVoice</div>
+            <div className="brand-mark">
+              <LogoMark size={20} />
+              <span>ReVoice</span>
+            </div>
             <p className="login-kicker">Memory Agent demo</p>
             <h1 id="login-title">Choose a reference person to begin.</h1>
             <p className="login-lede">
@@ -77,7 +98,10 @@ export default function App() {
 
           <section className="login-card" aria-label="Reference people">
             <div className="login-card-header">
-              <span>Sign in as</span>
+              <span className="login-card-header-left">
+                <LogoMark size={16} />
+                Sign in as
+              </span>
               <strong>Demo identity</strong>
             </div>
             <div className="profile-choice-list">
@@ -98,6 +122,9 @@ export default function App() {
                 </button>
               ))}
             </div>
+            <div className="login-card-footer">
+              Qwen Cloud reasoning · Deployed on Alibaba Cloud
+            </div>
           </section>
         </main>
       </div>
@@ -108,7 +135,7 @@ export default function App() {
     <div className="app-shell">
       <header className="app-header">
         <div className="header-brand">
-          <span className="header-logo" aria-hidden="true">R</span>
+          <span className="header-logo" aria-hidden="true"><LogoMark /></span>
           <span>
             <span className="header-title">ReVoice</span>
             <span className="header-tagline">Memory Agent</span>
