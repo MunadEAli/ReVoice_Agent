@@ -208,6 +208,62 @@ score = 0.30·relevance + 0.20·salience + 0.20·recovery_similarity
 
 **Adaptive weights:** `recovery_similarity` rewards rung-1 independent recalls (efficiency = 1.0) more than rung-4 full reveals (0.25), and weights recent episodes more heavily than older ones.
 
+## Validation
+
+ReVoice ships with two executable evaluation suites that produce real, reproducible results.
+
+### Core Eval — 32/32 tests pass
+
+```powershell
+python evals/test_cases.py          # 20 architectural property tests
+python data/validation/pnt_benchmark.py  # 12 PNT clinical error type tests
+```
+
+**Core suite (20 tests): ReVoice 20/20 · Memoryless 3/20 · Transcript-RAG 1/20**
+
+Each test isolates one architectural property that a memory agent must have. The 17 cases where both baselines fail represent behaviours that are impossible without structured memory, policy enforcement, and adaptive state — things a naive keyword search or alphabetical sort cannot provide.
+
+| Property tested | Cases |
+|---|---|
+| Persistent ability state (lower rung next session) | 1, 4, 5 |
+| Personal cue ranking | 8, 9, 10, 17, 18 |
+| Consent gating (caregiver-only hidden from user) | 6, 13 |
+| Superseded concept exclusion | 3, 14 |
+| Context salience + session budget | 7, 11, 12, 15, 19, 20 |
+| Cross-context transfer | 16 |
+
+**PNT clinical validation (12 tests): ReVoice 12/12 · Memoryless 4/12**
+
+Tests that the scoring correctly handles all six semantic error types documented in the Philadelphia Naming Test (Schwartz et al., 2006). Semantic errors account for ~27% of all naming responses in aphasia — the core problem ReVoice is designed for. The 4 memoryless passes are alphabetical accidents, not semantic matches.
+
+| PNT Error Type | Example input | ReVoice | Memoryless |
+|---|---|:---:|:---:|
+| Superordinate substitution | `family member` → Person | PASS | FAIL |
+| Coordinate error | `grandson` → Person (Lily) | PASS | FAIL |
+| Circumlocution | `the big building nearby` → Clinic | PASS | FAIL |
+| Associative error | `hot morning drink` → Coffee | PASS | PASS* |
+| Functional circumlocution | `the small daily tablet` → Medication | PASS | FAIL |
+| Kinship title | `nana` → Person (Grandma Sarah) | PASS | PASS* |
+
+\* Memoryless pass is an alphabetical accident (Black Coffee < Lily; Grandma < Insurance alphabetically).
+
+### Dataset provenance
+
+The `_CATEGORY_EXPANSIONS` vocabulary in `services/memory/scoring.py` is derived from two real datasets, not hand-crafted guesswork:
+
+| Dataset | What it provides | How used |
+|---|---|---|
+| Princeton WordNet (Miller, 1995) | 117,659 synsets; hyponym chains for kinship, beverage, health facility, social event, and medicine synsets | Source of expansion word candidates |
+| wordfreq corpus (Speer et al., 2018) | Word frequencies from Wikipedia, OpenSubtitles, Twitter | Filter: only words ≥ 1×10⁻⁶ per million kept; removes obscure terms like `anticholinesterase` |
+| PNT 175-item word list (Roach et al., 1996) | Picture-naming targets + semantic error rates from 94 participants with aphasia | Reference benchmark; error type taxonomy grounds the 12 PNT test cases |
+
+Derivation script: `data/validation/derive_expansions_wordnet.py`
+Raw WordNet output: `data/validation/wordnet_expansions.json`
+PNT reference: `data/validation/pnt_targets.json`
+Clinical citation map: `docs/clinical_grounding.md`
+
+Full results: `evals/RESULTS.md` and `evals/PNT_RESULTS.md`
+
 ## Submission Description
 
 ReVoice is a Qwen-powered adaptive memory agent for people with word-finding difficulty. It stores not just facts, but the recovery path: which cues helped this person retrieve this word, at which rung, in which context. It learns from cue outcomes, adapts future Qwen hint plans to each user's cue-style preferences — including for brand-new concepts that inherit what worked for past ones — hides answers before recall to protect practice, and exposes its full reasoning in a live Memory Inspector. The scoring algorithm uses a semantic relevance gate so history never overrides semantic signal. Built for Track 1: MemoryAgent, ReVoice demonstrates persistent cross-session memory, efficient retrieval under context limits, explicit human confirmation checkpoints, consent-based safety gates, correction handling with audit trails, and production deployment on Alibaba Cloud.

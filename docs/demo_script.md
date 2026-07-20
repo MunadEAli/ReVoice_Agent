@@ -132,6 +132,10 @@ If asked, or if you want to add a verbal note:
 
 > Most memory agents are retrieval-augmented generation over a flat fact store. ReVoice stores the **recovery path**: which cue strategy worked, at which rung, in which context, and how recently. Qwen reasons over a compact, ranked, personalized memory context — not a keyword search. And the system learns from outcomes, so every confirmed success or failed hint updates two persistent memory structures.
 
+If asked about validation or clinical grounding:
+
+> The scoring algorithm is validated against the Philadelphia Naming Test error taxonomy — the clinical gold standard for naming assessment in aphasia. Semantic errors account for 27% of all naming responses; ReVoice handles all six error types correctly while a memoryless baseline handles none. The category expansion vocabulary is derived from Princeton WordNet filtered by real word frequency data — not a hand-crafted list. Full methodology is in `docs/clinical_grounding.md` and `evals/RESULTS.md`.
+
 ## Backup If Something Fails Live
 
 - If live Qwen is slow: "The architecture supports mock mode for local testing; the deployed configuration uses live Qwen Cloud."

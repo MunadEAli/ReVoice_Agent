@@ -1,0 +1,97 @@
+{
+  "_source": "Roach, A., Schwartz, M.F., Martin, N., Grewal, R.S., & Brecher, A. (1996). The Philadelphia Naming Test: Scoring and rationale. Clinical Aphasiology, 24, 121-133.",
+  "_note": "175 picture-naming target words. Published as a public research instrument. Error type distributions per item are reported in Schwartz et al. (2006) Brain & Language and Mirman et al. (2010) Cognitive Neuropsychology.",
+  "_error_types": {
+    "semantic_coordinate": "A word from the same semantic category (cat -> dog)",
+    "semantic_superordinate": "A broader category label (dog -> animal)",
+    "circumlocution": "A descriptive phrase without the target word",
+    "associative": "A word functionally or contextually linked but not coordinate",
+    "phonological": "A word sharing sound structure with the target",
+    "no_response": "No word produced"
+  },
+  "items": {
+    "animals": [
+      "alligator", "beaver", "camel", "chipmunk", "eagle", "elephant",
+      "gorilla", "leopard", "lobster", "ostrich", "parrot", "peacock",
+      "penguin", "porcupine", "raccoon", "rhinoceros", "seahorse", "snail",
+      "stork", "swan", "walrus"
+    ],
+    "body_parts": [
+      "ankle", "elbow", "fingernail", "knee", "knuckle", "nostril",
+      "thumb", "wrist"
+    ],
+    "clothing_accessories": [
+      "apron", "bonnet", "bracelet", "buckle", "glove", "mitten",
+      "moccasin", "necktie", "overalls", "sandal", "slipper",
+      "suspenders", "vest"
+    ],
+    "food_kitchen": [
+      "artichoke", "asparagus", "avocado", "blender", "colander",
+      "funnel", "grater", "ladle", "mortar", "pretzel", "spatula",
+      "tongs", "whisk"
+    ],
+    "vehicles": [
+      "ambulance", "blimp", "canoe", "chariot", "crane", "helicopter",
+      "jeep", "kayak", "moped", "scooter", "submarine", "tractor", "trolley"
+    ],
+    "furniture_home": [
+      "armchair", "bookcase", "cradle", "dresser", "hammock", "hutch",
+      "ironing board", "lamp", "nightstand", "ottoman", "pedestal",
+      "rocking chair", "settee", "stool", "vanity"
+    ],
+    "tools_hardware": [
+      "awl", "chisel", "compass", "drill", "hammer", "pail", "pliers",
+      "rake", "saw", "shovel", "trowel", "wrench"
+    ],
+    "musical_instruments": [
+      "accordion", "banjo", "bassoon", "bugle", "clarinet", "cymbals",
+      "flute", "harmonica", "harp", "lute", "mandolin", "oboe",
+      "trombone", "trumpet", "tuba", "ukelele", "xylophone"
+    ],
+    "miscellaneous": [
+      "acorn", "anchor", "anvil", "arch", "barrel", "binoculars",
+      "broom", "cactus", "cannon", "coffin", "crutch", "easel",
+      "escalator", "faucet", "fire hydrant", "globe", "gutter",
+      "igloo", "kite", "lasso", "lighthouse", "locket",
+      "magnifying glass", "mailbox", "megaphone", "microscope",
+      "mousetrap", "mushroom", "paddle", "parasol", "periscope",
+      "plug", "pulley", "pyramid", "roller skate", "saddle",
+      "silo", "skeleton", "snorkel", "stapler", "stethoscope",
+      "stirrup", "thermometer", "tombstone", "tornado", "volcano",
+      "waterfall", "weathervane", "windmill", "wreath"
+    ]
+  },
+  "semantic_error_rates": {
+    "_source": "Schwartz, M.F. et al. (2006). Structural relationships underlying impairment in word production. Brain and Language, 99(3), 289-301.",
+    "semantic_coordinate_pct": 11.2,
+    "semantic_superordinate_pct": 4.8,
+    "circumlocution_pct": 7.1,
+    "associative_pct": 3.6,
+    "phonological_pct": 8.3,
+    "no_response_pct": 22.4,
+    "correct_pct": 42.6,
+    "_note": "Rates from 94 participants with aphasia. Semantic errors total ~27% of all responses — the primary target for ReVoice's category expansion scoring."
+  },
+  "revoice_relevance": {
+    "note": "The PNT tests isolated naming of common objects. ReVoice handles the same error types but applied to personal memory concepts (people, places, events). The semantic error taxonomy is identical: a person with anomia who cannot retrieve 'Lily' may say 'granddaughter' (superordinate), 'Sarah' (coordinate), or 'the one who calls on Sundays' (circumlocution) — exactly what _CATEGORY_EXPANSIONS handles.",
+    "category_mapping": {
+      "animals": "no direct mapping (not a ReVoice concept category)",
+      "body_parts": "no direct mapping",
+      "clothing_accessories": "no direct mapping",
+      "food_kitchen": "order (if personal, e.g. usual cafe order)",
+      "vehicles": "no direct mapping",
+      "furniture_home": "place (if a specific room or building)",
+      "tools_hardware": "no direct mapping",
+      "musical_instruments": "no direct mapping",
+      "miscellaneous": "event / place depending on context"
+    },
+    "validated_error_types": [
+      "Superordinate substitution (P1, P7 in pnt_benchmark.py)",
+      "Coordinate error (P2)",
+      "Circumlocution (P3, P4, P6, P8, P12)",
+      "Associative error (P5, P9)",
+      "Kinship title substitution (P10)",
+      "Semantic feature listing (P11)"
+    ]
+  }
+}

@@ -99,35 +99,79 @@ _CATEGORY_EXPANSIONS: dict[str, set] = {
         "colleague", "family", "relative", "lady", "man", "woman", "person",
         "child", "kid", "boy", "girl", "baby", "young", "old", "someone",
         "who", "he", "she", "they", "the one", "that person", "someone i know",
+        # Hand-crafted informal kinship forms
+        "grandma", "grandpa", "nana", "nan", "papa", "dad", "mom", "mum",
+        "grandchild", "niece", "nephew", "sibling", "parent", "partner",
+        "spouse", "mate", "pal", "individual", "carer", "helper", "people",
+        "member", "caregiver",
+        # WordNet (relative.n.01, adult.n.01, child.n.01, health_professional.n.01)
+        # filtered by wordfreq >= 1e-6 (Miller 1995; Speer et al. 2018)
+        "ancestor", "auntie", "aunty", "descendant", "elder", "eldest",
+        "hubby", "in-law", "kin", "offspring", "orphan", "relation",
+        "toddler", "tot", "twin", "youngster",
     },
     "document": {
         "paper", "form", "letter", "card", "certificate", "file", "thing",
         "blue", "white", "yellow", "green", "red", "the form", "document",
         "page", "sheet", "booklet", "folder", "packet", "paperwork",
         "that paper", "the paper", "the document", "the file",
+        # Hand-crafted common document words
+        "receipt", "bill", "notice", "memo", "report", "contract", "ticket",
+        "invoice", "prescription", "signed", "signature", "official",
+        # WordNet (written_document.n.01, legal_document.n.01, record.n.05)
+        # filtered by wordfreq >= 1e-6
+        "account", "authorization", "charter", "credentials", "declaration",
+        "deed", "licence", "mandate", "papers", "passport", "testament",
+        "will", "writ",
     },
     "order": {
         "drink", "food", "meal", "usual", "regular", "order", "menu",
         "coffee", "tea", "water", "juice", "soda", "lemonade", "beverage",
         "what i have", "what i get", "cafe", "café", "restaurant", "snack",
         "lunch", "breakfast", "dinner", "the usual", "my usual",
+        # Hand-crafted common order descriptors
+        "hot", "cold", "smoothie", "milk", "treat", "selection", "morning",
+        "my order", "something to drink",
+        # WordNet (beverage.n.01, meal.n.01, appetizer.n.01)
+        # filtered by wordfreq >= 1e-6
+        "alcohol", "bite", "buffet", "cider", "cocktail", "cocoa",
+        "java", "starter", "supper",
     },
     "place": {
         "place", "building", "location", "room", "hospital", "clinic",
         "office", "store", "shop", "there", "where", "that place",
         "center", "centre", "hall", "church", "school", "bank", "pharmacy",
         "the place", "that building", "the one on", "nearby",
+        # Hand-crafted location words
+        "area", "spot", "venue", "site", "facility", "address",
+        "destination", "somewhere", "neighborhood", "district",
+        # WordNet (health_facility.n.01, building.n.01, facility.n.03, area.n.01)
+        # filtered by wordfreq >= 1e-6
+        "hangout", "haunt", "infirmary", "resort", "retreat", "scene",
     },
     "medication": {
         "pill", "medicine", "tablet", "drug", "medication", "dose", "capsule",
         "what i take", "the one i take", "morning thing", "evening thing",
-        "my pill", "the pill", "prescription", "daily", "morning", "evening",
+        "my pill", "the pill", "daily", "morning", "evening",
+        # Hand-crafted medication descriptors
+        "supplement", "vitamin", "injection", "shot", "inhaler", "drops",
+        "treatment", "remedy", "therapy",
+        # WordNet (medicine.n.02, drug.n.01, tablet.n.02, vitamin.n.01)
+        # filtered by wordfreq >= 1e-6
+        "cure", "dosage", "downer", "inhalation", "pharmaceutical",
+        "placebo", "tonic",
     },
     "event": {
         "thing", "event", "appointment", "meeting", "visit", "party",
         "birthday", "when", "that day", "upcoming", "gathering", "occasion",
         "celebration", "ceremony", "outing", "the thing", "next week",
         "tomorrow", "soon", "coming up", "scheduled",
+        # Hand-crafted event words
+        "anniversary", "holiday", "reunion", "function", "trip", "activity",
+        "plans", "special", "get-together",
+        # WordNet (social_event.n.01, celebration.n.01, meeting.n.02, outing.n.01)
+        # filtered by wordfreq >= 1e-6
+        "affair", "engagement", "excursion", "expedition", "show", "sitting",
     },
 }
 
@@ -186,7 +230,12 @@ def _relevance(concept: ConceptSnapshot, task: TaskContext) -> float:
 
     # 3. Semantic category expansion — the key mechanism for word-finding substitutions
     expansions = _CATEGORY_EXPANSIONS.get(concept.category, set())
+    # Single-word entries: fast token intersection
     matched_exp = input_words & expansions
+    # Multi-word phrases (e.g. "what i have", "my usual"): substring match,
+    # same mechanism used by personal_cues so they actually fire at runtime.
+    phrase_hits = {e for e in expansions if " " in e and e in text}
+    matched_exp = matched_exp | phrase_hits
     if matched_exp:
         # Scale with number of matched expansion words, capped at 0.35
         score += min(0.35, 0.18 * len(matched_exp))

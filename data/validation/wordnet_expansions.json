@@ -1,0 +1,961 @@
+{
+  "person": {
+    "total_unique_words": 93,
+    "all_words": [
+      "adult",
+      "ancestor",
+      "aunt",
+      "auntie",
+      "aunty",
+      "baby",
+      "bastard",
+      "brother-in-law",
+      "buster",
+      "by-blow",
+      "caregiver",
+      "case",
+      "catch",
+      "centrist",
+      "character",
+      "chemist",
+      "child",
+      "co-worker",
+      "colleague",
+      "conservative",
+      "consort",
+      "cousin",
+      "cousin-german",
+      "daughter-in-law",
+      "descendant",
+      "eccentric",
+      "elder",
+      "eldest",
+      "ex-spouse",
+      "family",
+      "father",
+      "father-in-law",
+      "foster-child",
+      "friend",
+      "fry",
+      "grandchild",
+      "heir",
+      "host",
+      "hubby",
+      "husband",
+      "illegitimate",
+      "imp",
+      "in-law",
+      "issue",
+      "kid",
+      "kin",
+      "liberal",
+      "man",
+      "match",
+      "mate",
+      "minor",
+      "moderate",
+      "monkey",
+      "mother-in-law",
+      "neighbor",
+      "neighbour",
+      "nephew",
+      "niece",
+      "nurse",
+      "offspring",
+      "orphan",
+      "pacifist",
+      "partner",
+      "peanut",
+      "pharmacist",
+      "professional",
+      "progeny",
+      "progressive",
+      "quad",
+      "rascal",
+      "relation",
+      "relative",
+      "relative-in-law",
+      "root",
+      "scion",
+      "senior",
+      "sibling",
+      "silly",
+      "sire",
+      "sister-in-law",
+      "son-in-law",
+      "spouse",
+      "stay-at-home",
+      "stoic",
+      "successor",
+      "toddler",
+      "tot",
+      "twin",
+      "type",
+      "uncle",
+      "wife",
+      "woman",
+      "youngster"
+    ],
+    "synsets": [
+      {
+        "synset": "relative.n.01",
+        "definition": "a person related by blood or marriage",
+        "depth": 2,
+        "raw_lemmas": 87,
+        "after_freq_filter": 49,
+        "words": [
+          "ancestor",
+          "aunt",
+          "auntie",
+          "aunty",
+          "baby",
+          "bastard",
+          "brother-in-law",
+          "by-blow",
+          "child",
+          "consort",
+          "cousin",
+          "cousin-german",
+          "daughter-in-law",
+          "descendant",
+          "eldest",
+          "family",
+          "father",
+          "father-in-law",
+          "grandchild",
+          "heir",
+          "hubby",
+          "husband",
+          "illegitimate",
+          "in-law",
+          "issue",
+          "kid",
+          "kin",
+          "mate",
+          "mother-in-law",
+          "nephew",
+          "niece",
+          "offspring",
+          "partner",
+          "progeny",
+          "quad",
+          "relation",
+          "relative",
+          "relative-in-law",
+          "root",
+          "scion",
+          "sibling",
+          "sire",
+          "sister-in-law",
+          "son-in-law",
+          "spouse",
+          "successor",
+          "twin",
+          "uncle",
+          "wife"
+        ]
+      },
+      {
+        "synset": "health_professional.n.01",
+        "definition": "a person who helps in identifying or preventing or treating illness or disability",
+        "depth": 1,
+        "raw_lemmas": 9,
+        "after_freq_filter": 4,
+        "words": [
+          "caregiver",
+          "chemist",
+          "nurse",
+          "pharmacist"
+        ]
+      },
+      {
+        "synset": "adult.n.01",
+        "definition": "a fully developed person from maturity onward",
+        "depth": 1,
+        "raw_lemmas": 42,
+        "after_freq_filter": 23,
+        "words": [
+          "adult",
+          "caregiver",
+          "case",
+          "catch",
+          "centrist",
+          "character",
+          "conservative",
+          "eccentric",
+          "elder",
+          "ex-spouse",
+          "host",
+          "liberal",
+          "man",
+          "match",
+          "moderate",
+          "pacifist",
+          "professional",
+          "progressive",
+          "senior",
+          "stay-at-home",
+          "stoic",
+          "type",
+          "woman"
+        ]
+      },
+      {
+        "synset": "child.n.01",
+        "definition": "a young person of either sex",
+        "depth": 1,
+        "raw_lemmas": 40,
+        "after_freq_filter": 15,
+        "words": [
+          "buster",
+          "child",
+          "foster-child",
+          "fry",
+          "imp",
+          "kid",
+          "minor",
+          "monkey",
+          "orphan",
+          "peanut",
+          "rascal",
+          "silly",
+          "toddler",
+          "tot",
+          "youngster"
+        ]
+      },
+      {
+        "synset": "friend.n.01",
+        "definition": "a person you know well and regard with affection and trust",
+        "depth": 0,
+        "raw_lemmas": 1,
+        "after_freq_filter": 1,
+        "words": [
+          "friend"
+        ]
+      },
+      {
+        "synset": "neighbor.n.01",
+        "definition": "a person who lives (or is located) near another",
+        "depth": 0,
+        "raw_lemmas": 2,
+        "after_freq_filter": 2,
+        "words": [
+          "neighbor",
+          "neighbour"
+        ]
+      },
+      {
+        "synset": "colleague.n.01",
+        "definition": "an associate that one works with",
+        "depth": 0,
+        "raw_lemmas": 3,
+        "after_freq_filter": 2,
+        "words": [
+          "co-worker",
+          "colleague"
+        ]
+      }
+    ]
+  },
+  "document": {
+    "total_unique_words": 62,
+    "all_words": [
+      "account",
+      "act",
+      "affidavit",
+      "assignment",
+      "authorisation",
+      "authorization",
+      "ballot",
+      "bill",
+      "book",
+      "brief",
+      "card",
+      "certificate",
+      "certification",
+      "charter",
+      "confession",
+      "copyright",
+      "credentials",
+      "declaration",
+      "deed",
+      "derivative",
+      "document",
+      "enactment",
+      "enclosure",
+      "form",
+      "impeachment",
+      "indictment",
+      "instrument",
+      "invoice",
+      "judgement",
+      "judgment",
+      "law",
+      "licence",
+      "license",
+      "mandate",
+      "manifest",
+      "measure",
+      "notice",
+      "opinion",
+      "papers",
+      "passport",
+      "patent",
+      "permit",
+      "platform",
+      "prescription",
+      "program",
+      "receipt",
+      "record",
+      "release",
+      "report",
+      "resignation",
+      "resolution",
+      "resolve",
+      "return",
+      "security",
+      "source",
+      "specification",
+      "study",
+      "testament",
+      "title",
+      "voucher",
+      "will",
+      "writ"
+    ],
+    "synsets": [
+      {
+        "synset": "written_document.n.01",
+        "definition": "writing that provides information (especially information of an official nature)",
+        "depth": 1,
+        "raw_lemmas": 29,
+        "after_freq_filter": 24,
+        "words": [
+          "ballot",
+          "certificate",
+          "certification",
+          "charter",
+          "confession",
+          "copyright",
+          "credentials",
+          "declaration",
+          "document",
+          "enclosure",
+          "form",
+          "instrument",
+          "papers",
+          "patent",
+          "platform",
+          "program",
+          "report",
+          "resignation",
+          "resolution",
+          "resolve",
+          "source",
+          "specification",
+          "study",
+          "voucher"
+        ]
+      },
+      {
+        "synset": "legal_document.n.01",
+        "definition": "(law) a document that states some contractual relationship or grants some right",
+        "depth": 1,
+        "raw_lemmas": 37,
+        "after_freq_filter": 33,
+        "words": [
+          "act",
+          "affidavit",
+          "assignment",
+          "authorisation",
+          "authorization",
+          "bill",
+          "brief",
+          "certificate",
+          "deed",
+          "derivative",
+          "enactment",
+          "impeachment",
+          "indictment",
+          "instrument",
+          "judgement",
+          "judgment",
+          "law",
+          "licence",
+          "license",
+          "mandate",
+          "manifest",
+          "measure",
+          "opinion",
+          "passport",
+          "patent",
+          "permit",
+          "release",
+          "return",
+          "security",
+          "testament",
+          "title",
+          "will",
+          "writ"
+        ]
+      },
+      {
+        "synset": "record.n.05",
+        "definition": "a compilation of the known facts regarding something or someone",
+        "depth": 1,
+        "raw_lemmas": 5,
+        "after_freq_filter": 3,
+        "words": [
+          "book",
+          "card",
+          "record"
+        ]
+      },
+      {
+        "synset": "receipt.n.02",
+        "definition": "an acknowledgment (usually tangible) that payment has been made",
+        "depth": 0,
+        "raw_lemmas": 1,
+        "after_freq_filter": 1,
+        "words": [
+          "receipt"
+        ]
+      },
+      {
+        "synset": "bill.n.02",
+        "definition": "an itemized statement of money owed for goods shipped or services rendered",
+        "depth": 0,
+        "raw_lemmas": 3,
+        "after_freq_filter": 3,
+        "words": [
+          "account",
+          "bill",
+          "invoice"
+        ]
+      },
+      {
+        "synset": "prescription.n.01",
+        "definition": "directions prescribed beforehand; the action of prescribing authoritative rules or directions",
+        "depth": 0,
+        "raw_lemmas": 1,
+        "after_freq_filter": 1,
+        "words": [
+          "prescription"
+        ]
+      },
+      {
+        "synset": "notice.n.06",
+        "definition": "polite or favorable attention",
+        "depth": 0,
+        "raw_lemmas": 1,
+        "after_freq_filter": 1,
+        "words": [
+          "notice"
+        ]
+      }
+    ]
+  },
+  "order": {
+    "total_unique_words": 34,
+    "all_words": [
+      "alcohol",
+      "banquet",
+      "beverage",
+      "bite",
+      "breakfast",
+      "brunch",
+      "buffet",
+      "chocolate",
+      "cider",
+      "cocktail",
+      "cocoa",
+      "coffee",
+      "cooler",
+      "dinner",
+      "dish",
+      "drink",
+      "feast",
+      "java",
+      "lunch",
+      "luncheon",
+      "mate",
+      "meal",
+      "mess",
+      "milk",
+      "mixer",
+      "picnic",
+      "potion",
+      "smoothie",
+      "snack",
+      "spread",
+      "starter",
+      "supper",
+      "tea",
+      "wish-wash"
+    ],
+    "synsets": [
+      {
+        "synset": "beverage.n.01",
+        "definition": "any liquid suitable for drinking",
+        "depth": 1,
+        "raw_lemmas": 26,
+        "after_freq_filter": 16,
+        "words": [
+          "alcohol",
+          "beverage",
+          "chocolate",
+          "cider",
+          "cocoa",
+          "coffee",
+          "cooler",
+          "drink",
+          "java",
+          "mate",
+          "milk",
+          "mixer",
+          "potion",
+          "smoothie",
+          "tea",
+          "wish-wash"
+        ]
+      },
+      {
+        "synset": "meal.n.01",
+        "definition": "the food served and eaten at one time",
+        "depth": 1,
+        "raw_lemmas": 24,
+        "after_freq_filter": 16,
+        "words": [
+          "banquet",
+          "bite",
+          "breakfast",
+          "brunch",
+          "buffet",
+          "dinner",
+          "feast",
+          "lunch",
+          "luncheon",
+          "meal",
+          "mess",
+          "picnic",
+          "snack",
+          "spread",
+          "supper",
+          "tea"
+        ]
+      },
+      {
+        "synset": "appetizer.n.01",
+        "definition": "food or drink to stimulate the appetite (usually served before a meal or as the first course)",
+        "depth": 1,
+        "raw_lemmas": 7,
+        "after_freq_filter": 2,
+        "words": [
+          "cocktail",
+          "starter"
+        ]
+      },
+      {
+        "synset": "dish.n.02",
+        "definition": "a particular item of prepared food",
+        "depth": 0,
+        "raw_lemmas": 1,
+        "after_freq_filter": 1,
+        "words": [
+          "dish"
+        ]
+      }
+    ]
+  },
+  "place": {
+    "total_unique_words": 39,
+    "all_words": [
+      "anchorage",
+      "area",
+      "arena",
+      "bed-ground",
+      "block",
+      "building",
+      "center",
+      "centre",
+      "clear",
+      "clinic",
+      "corner",
+      "country",
+      "danger",
+      "eye",
+      "facility",
+      "hangout",
+      "haunt",
+      "heart",
+      "hearth",
+      "hospital",
+      "infirmary",
+      "location",
+      "middle",
+      "neighborhood",
+      "office",
+      "open",
+      "playground",
+      "quadrant",
+      "readiness",
+      "refuge",
+      "repair",
+      "resort",
+      "retreat",
+      "safety",
+      "scene",
+      "section",
+      "shop",
+      "space",
+      "store"
+    ],
+    "synsets": [
+      {
+        "synset": "health_facility.n.01",
+        "definition": "building where medicine is practiced",
+        "depth": 1,
+        "raw_lemmas": 3,
+        "after_freq_filter": 3,
+        "words": [
+          "clinic",
+          "hospital",
+          "infirmary"
+        ]
+      },
+      {
+        "synset": "building.n.01",
+        "definition": "a structure that has a roof and walls and stands more or less permanently in one place",
+        "depth": 0,
+        "raw_lemmas": 2,
+        "after_freq_filter": 1,
+        "words": [
+          "building"
+        ]
+      },
+      {
+        "synset": "facility.n.03",
+        "definition": "a natural effortlessness; ; --Jane Austen",
+        "depth": 1,
+        "raw_lemmas": 2,
+        "after_freq_filter": 2,
+        "words": [
+          "facility",
+          "readiness"
+        ]
+      },
+      {
+        "synset": "area.n.01",
+        "definition": "a particular geographical region of indefinite boundary (usually serving some special purpose or distinguished by its people or culture or geography)",
+        "depth": 1,
+        "raw_lemmas": 32,
+        "after_freq_filter": 29,
+        "words": [
+          "anchorage",
+          "area",
+          "arena",
+          "bed-ground",
+          "block",
+          "center",
+          "centre",
+          "clear",
+          "corner",
+          "country",
+          "danger",
+          "eye",
+          "hangout",
+          "haunt",
+          "heart",
+          "hearth",
+          "middle",
+          "neighborhood",
+          "open",
+          "playground",
+          "quadrant",
+          "refuge",
+          "repair",
+          "resort",
+          "retreat",
+          "safety",
+          "scene",
+          "section",
+          "space"
+        ]
+      },
+      {
+        "synset": "location.n.01",
+        "definition": "a point or extent in space",
+        "depth": 0,
+        "raw_lemmas": 1,
+        "after_freq_filter": 1,
+        "words": [
+          "location"
+        ]
+      },
+      {
+        "synset": "store.n.01",
+        "definition": "a mercantile establishment for the retail sale of goods or services",
+        "depth": 0,
+        "raw_lemmas": 2,
+        "after_freq_filter": 2,
+        "words": [
+          "shop",
+          "store"
+        ]
+      },
+      {
+        "synset": "office.n.01",
+        "definition": "place of business where professional or clerical duties are performed",
+        "depth": 0,
+        "raw_lemmas": 1,
+        "after_freq_filter": 1,
+        "words": [
+          "office"
+        ]
+      }
+    ]
+  },
+  "medication": {
+    "total_unique_words": 26,
+    "all_words": [
+      "anti-inflammatory",
+      "apc",
+      "blocker",
+      "capsule",
+      "cure",
+      "dosage",
+      "dose",
+      "downer",
+      "drug",
+      "inhalation",
+      "injection",
+      "medication",
+      "medicine",
+      "pad",
+      "pharmaceutical",
+      "pill",
+      "placebo",
+      "powder",
+      "prescription",
+      "remedy",
+      "specific",
+      "supplement",
+      "tablet",
+      "therapeutic",
+      "tonic",
+      "vitamin"
+    ],
+    "synsets": [
+      {
+        "synset": "medicine.n.02",
+        "definition": "(medicine) something that treats or prevents or alleviates the symptoms of disease",
+        "depth": 1,
+        "raw_lemmas": 117,
+        "after_freq_filter": 18,
+        "words": [
+          "anti-inflammatory",
+          "apc",
+          "blocker",
+          "cure",
+          "dosage",
+          "dose",
+          "downer",
+          "inhalation",
+          "medication",
+          "medicine",
+          "pharmaceutical",
+          "placebo",
+          "powder",
+          "prescription",
+          "remedy",
+          "specific",
+          "therapeutic",
+          "tonic"
+        ]
+      },
+      {
+        "synset": "drug.n.01",
+        "definition": "a substance that is used as a medicine or narcotic",
+        "depth": 0,
+        "raw_lemmas": 1,
+        "after_freq_filter": 1,
+        "words": [
+          "drug"
+        ]
+      },
+      {
+        "synset": "tablet.n.02",
+        "definition": "a number of sheets of paper fastened together along one edge",
+        "depth": 0,
+        "raw_lemmas": 2,
+        "after_freq_filter": 2,
+        "words": [
+          "pad",
+          "tablet"
+        ]
+      },
+      {
+        "synset": "pill.n.01",
+        "definition": "something that resembles a tablet of medicine in shape or size",
+        "depth": 0,
+        "raw_lemmas": 1,
+        "after_freq_filter": 1,
+        "words": [
+          "pill"
+        ]
+      },
+      {
+        "synset": "capsule.n.01",
+        "definition": "a small container",
+        "depth": 0,
+        "raw_lemmas": 1,
+        "after_freq_filter": 1,
+        "words": [
+          "capsule"
+        ]
+      },
+      {
+        "synset": "injection.n.01",
+        "definition": "the forceful insertion of a substance under pressure",
+        "depth": 0,
+        "raw_lemmas": 1,
+        "after_freq_filter": 1,
+        "words": [
+          "injection"
+        ]
+      },
+      {
+        "synset": "vitamin.n.01",
+        "definition": "any of a group of organic substances essential in small quantities to normal metabolism",
+        "depth": 0,
+        "raw_lemmas": 1,
+        "after_freq_filter": 1,
+        "words": [
+          "vitamin"
+        ]
+      },
+      {
+        "synset": "supplement.n.02",
+        "definition": "a quantity added (e.g. to make up for a deficiency)",
+        "depth": 0,
+        "raw_lemmas": 2,
+        "after_freq_filter": 1,
+        "words": [
+          "supplement"
+        ]
+      }
+    ]
+  },
+  "event": {
+    "total_unique_words": 20,
+    "all_words": [
+      "affair",
+      "airing",
+      "appointment",
+      "celebration",
+      "competition",
+      "contest",
+      "date",
+      "engagement",
+      "excursion",
+      "expedition",
+      "function",
+      "meeting",
+      "occasion",
+      "outing",
+      "party",
+      "reunion",
+      "session",
+      "show",
+      "sitting",
+      "visit"
+    ],
+    "synsets": [
+      {
+        "synset": "social_event.n.01",
+        "definition": "an event characteristic of persons forming groups",
+        "depth": 1,
+        "raw_lemmas": 6,
+        "after_freq_filter": 6,
+        "words": [
+          "affair",
+          "competition",
+          "contest",
+          "function",
+          "occasion",
+          "show"
+        ]
+      },
+      {
+        "synset": "celebration.n.01",
+        "definition": "a joyful occasion for special festivities to mark some happy event",
+        "depth": 1,
+        "raw_lemmas": 2,
+        "after_freq_filter": 1,
+        "words": [
+          "celebration"
+        ]
+      },
+      {
+        "synset": "meeting.n.02",
+        "definition": "a small informal social gathering",
+        "depth": 1,
+        "raw_lemmas": 9,
+        "after_freq_filter": 7,
+        "words": [
+          "appointment",
+          "date",
+          "engagement",
+          "meeting",
+          "session",
+          "sitting",
+          "visit"
+        ]
+      },
+      {
+        "synset": "outing.n.01",
+        "definition": "a journey taken for pleasure",
+        "depth": 1,
+        "raw_lemmas": 7,
+        "after_freq_filter": 4,
+        "words": [
+          "airing",
+          "excursion",
+          "expedition",
+          "outing"
+        ]
+      },
+      {
+        "synset": "reunion.n.01",
+        "definition": "a party of former associates who have come together again",
+        "depth": 0,
+        "raw_lemmas": 1,
+        "after_freq_filter": 1,
+        "words": [
+          "reunion"
+        ]
+      },
+      {
+        "synset": "visit.n.01",
+        "definition": "the act of going to see some person or place or thing for a short time",
+        "depth": 0,
+        "raw_lemmas": 1,
+        "after_freq_filter": 1,
+        "words": [
+          "visit"
+        ]
+      },
+      {
+        "synset": "party.n.01",
+        "definition": "an organization to gain political power",
+        "depth": 0,
+        "raw_lemmas": 1,
+        "after_freq_filter": 1,
+        "words": [
+          "party"
+        ]
+      }
+    ]
+  }
+}
