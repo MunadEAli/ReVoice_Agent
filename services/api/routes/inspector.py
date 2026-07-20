@@ -7,7 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from packages.schemas.db import get_db
-from packages.schemas.models import Attempt, CueEvent, AbilityState, AuditEvent
+from packages.schemas.models import (
+    Attempt, CueEvent, AbilityState, AuditEvent,
+    Session as SessionModel, Concept, CuePreference,
+)
+from services.api.orchestrator import _summarize_cue_preferences
 
 router = APIRouter()
 
@@ -62,18 +66,35 @@ def get_inspector(attempt_id: str, db: Session = Depends(get_db)):
         .first()
     )
     score_breakdown = []
+    qwen_trace = None
     if audit and audit.payload:
         payload = json.loads(audit.payload)
         score_breakdown = payload.get("scored_candidates", [])
+        qwen_trace = payload.get("qwen_trace")
 
     candidates = json.loads(attempt.candidate_scores or "[]")
+    session = db.query(SessionModel).filter(SessionModel.id == attempt.session_id).first()
+    concept = db.query(Concept).filter(Concept.id == concept_id).first() if concept_id else None
+    preference_query = db.query(CuePreference)
+    if session:
+        preference_query = preference_query.filter(CuePreference.owner_id == session.user_id)
+    if concept:
+        preference_query = preference_query.filter(CuePreference.category == concept.category)
+    cue_preferences = _summarize_cue_preferences(
+        preference_query
+        .order_by(CuePreference.score.desc(), CuePreference.successes.desc())
+        .limit(5)
+        .all()
+    ) if session else []
 
     return {
         "attempt_id": attempt_id,
         "outcome": attempt.outcome,
         "candidates": candidates,
         "score_breakdown": score_breakdown,
+        "qwen_trace": qwen_trace,
         "cue_ladder": cue_data,
+        "cue_preferences": cue_preferences,
         "ability_state": ability,
         "latency_ms": attempt.response_latency_ms,
     }

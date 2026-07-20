@@ -1,142 +1,126 @@
-# ReVoice Demo Script — 3 Minutes
+# ReVoice 3-Minute Demo Script
 
-Word-for-word narration for the hackathon submission video.
-Record at 1920×1080. Keep Memory Inspector visible at all times.
+Record this **after deploying to Alibaba Cloud** if possible. The final video should show the deployed URL and live Qwen mode in the Memory Inspector. If cloud deployment is not ready, record a local rehearsal first, then re-record the final version on the cloud URL.
 
----
+## Before Recording
 
-## Setup checklist (before recording)
+- Backend deployed to Alibaba Function Compute.
+- `USE_MOCK_QWEN=false` in the deployed environment.
+- `DASHSCOPE_API_KEY` set.
+- Frontend opened from the deployed URL or the Function Compute URL serving the built frontend.
+- Browser zoom around 100-110%.
+- Memory Inspector visible on the right.
+- Start from the login screen.
+- Use Margaret first, then briefly show James or the review screen.
 
-- [ ] `python data/demo_persona/seed.py` — fresh DB with both personas
-- [ ] `uvicorn services.api.main:app --reload` — API on port 8000
-- [ ] `npm run dev` (in apps/web) — frontend on port 5173
-- [ ] Verify Margaret's Lily ability state = level 3 (open `/reviews/margaret`)
-- [ ] Browser: full-screen, font size 110%, Memory Inspector visible
-- [ ] Optional: have a real photo ready to demo image upload
+## Timing And Narration
 
----
+### 0:00-0:20 - Hook
 
-## 0:00–0:18 — The problem
+Show the login screen.
 
-> "Most memory agents remember what you said, what you did, who you know.
-> ReVoice remembers something different — **how you get the words out.**
-> The specific cue path that worked for this person, for this concept.
-> And the next time, it uses a shorter path."
+> Most memory agents remember facts about you. ReVoice remembers something more personal: how you recover a word when it gets stuck.
+>
+> It is a Qwen-powered memory agent for people with word-finding difficulty. It learns which cues help each person, and it gives less help as recall improves.
 
-*Show: ReVoice session screen with Margaret selected. Inspector panel empty.*
+Click **Margaret**.
 
----
+### 0:20-0:45 - The Core Problem
 
-## 0:18–0:40 — Margaret's personal world
+On the Session screen, set context to **Family call** and type:
 
-> "This is Margaret. She communicates often about seven personal concepts —
-> her granddaughter Lily, her son Michael, the Riverside Clinic, her insurance form,
-> her usual café order, an upcoming birthday party, and her daily medication.
-> Each is stored not as a fact but as a concept with a recovery path."
+```text
+granddaughter
+```
 
-*Show: Click the 'Progress' tab. Scroll through the ability-state cards.
-Point to Lily at level 3 (green bar). Point to Michael at level 4 (orange).*
+Click **Find it**.
 
-> "Lily is already at level 3 — she has been recalled independently in two contexts.
-> Michael is still at level 4 — one more context will reduce his assistance level too."
+> Margaret knows what she means, but not the exact name. She types a stand-in word: granddaughter.
+>
+> ReVoice retrieves her personal memories, packs only the most relevant ones into Qwen, and asks Qwen to reason over that limited memory context.
 
----
+Point to the Memory Inspector Qwen Trace.
 
-## 0:40–1:15 — Session: word-finding with the cue ladder
+> On the right, the Memory Inspector shows the Qwen model, the memories sent to Qwen, and the candidate reasoning trace.
 
-> "Margaret types a stand-in phrase — 'granddaughter'. She doesn't remember the name.
-> Watch the Memory Inspector on the right."
+### 0:45-1:20 - Answer-Hidden Recall Practice
 
-*Switch to Session tab. Select context 'Family call'. Type "granddaughter" → Find it.*
+Show the candidate cards. They should say `Possible person match` instead of immediately revealing Lily.
 
-> "The Recovery-Path Similarity Score ranked every concept.
-> Lily scored highest — look at the relevance score: the word 'granddaughter'
-> matched the person-category semantic expansion, which is how this system
-> handles word-finding substitutions."
+> Notice the answer is hidden. The app does not just tell Margaret "Lily" immediately, because then the hint would be useless. It protects recall practice.
 
-*Show: Inspector → Candidate Scoring → Lily's relevance bar highlighted.*
+Click **Give me a hint**.
 
-> "She's not certain. She clicks 'Give me a hint'.
-> The cue ladder starts at rung 1 — a photo cue.
-> Because Lily is already at level 3, the system skips the reveal and goes straight
-> to a level-appropriate cue."
+> Qwen now generates an adaptive cue plan. But deterministic safety code scrubs the target answer, so the full name can only appear in the final reveal.
 
-*Click 'Give me a hint' on Lily → photo cue appears.*
+Show cue lines and the `Qwen cue plan` badge.
 
-> "The photo doesn't land. 'Not yet'. Rung 3 — first letters: L...
-> She remembers. 'Yes, I remember'."
+> This cue is not hardcoded for one demo. Qwen receives the concept category, relationship context, session context, and Margaret's learned cue preferences.
 
-*Click 'Not yet' → letters cue → 'Yes, I remember' → 'Yes, this is it' → confirmed.*
-*Show: Inspector cue ladder — red dot (rung 1 failed), green dot (rung 3 succeeded).*
+Click **Not yet - next hint** once if useful, then show the next step. Do not dwell too long.
 
----
+### 1:20-1:50 - Learning From Experience
 
-## 1:15–1:45 — Multimodal: photo as input
+Click **Yes, I remember** on a cue.
 
-> "Now let's show the vision model. Margaret uploads a photo of a glass of iced tea."
+> When Margaret succeeds, ReVoice records which cue strategy helped. When a cue fails, it records that too.
+>
+> That updates two memories: the concept's assistance level, and Margaret's cue-style preferences. So future hints for new people can inherit what worked for past people.
 
-*Click 📷 button → select photo of iced tea. Leave text blank. Click 'Find it'.*
+Show the Memory Inspector **Learned Cue Preference** section.
 
-> "The image is sent to qwen-vl-max. It identifies the beverage and returns Iced Tea
-> as the top candidate — with a personal 'why' drawn from her memory profile.
-> She confirms it. Confirmed in under two seconds."
+> This is the memory-agent part: not just storing Lily as a fact, but learning Margaret's recovery pattern over time.
 
-*Show: candidate card for Iced Tea appears with why. Click confirm.*
+### 1:50-2:15 - Progress Review
 
----
+Click **Progress**.
 
-## 1:45–2:10 — Cross-session learning
+> The progress screen shows per-concept memory state and the learned cue styles. If repeated successful recall happens, the next session starts with less help.
+>
+> The summary is generated by Qwen in nonclinical language. ReVoice never diagnoses or claims treatment; it only tracks interaction history and adapts assistance.
 
-> "Now switch to James — a second user entirely.
-> James uses the system for his wife Sarah, the community center, and his morning coffee."
+Point to Learned Cue Style and one ability card.
 
-*Click 'James' in the user selector.*
+### 2:15-2:40 - Multimodal And Safety
 
-> "Click Progress. Sarah and Black Coffee are already at level 3 —
-> two different contexts, two independent successes each.
-> The Community Center is still at level 4 — he needed the full reveal last session.
-> The system recorded that and will try again from the top."
+Return to Session. Option A: upload an image if you have one ready. Option B: verbally describe.
 
-*Show: James's Progress tab — Sarah/Coffee at green bars, Community Center at orange.*
+> ReVoice also supports multimodal input. If the user uploads a photo, the request routes to Qwen's vision model for grounding.
 
----
+Then type:
 
-## 2:10–2:35 — Consent gate + correction
+```text
+the pill
+```
 
-> "One more feature. Metformin — Margaret's daily medication — is marked caregiver-only sensitivity.
-> A regular session as user Margaret will not see it in suggestions.
-> The consent gate runs before scoring — it's not filtered after the fact."
+Click **Find it** as Margaret.
 
-*Switch back to Margaret. Type "the pill" → Find it.
-Show: candidates do NOT include Metformin.*
+> Safety gates run before ranking. Margaret's medication memory is caregiver-only, so a regular user session does not surface it as a suggestion.
 
-> "And corrections. Click 'Correct'. Suppose Lily's name was stored wrong.
-> We correct it. The old label is immediately superseded — invisible in all future retrievals —
-> but the episode history is preserved."
+### 2:40-3:00 - Architecture Close
 
-*Click Correct tab → select person.lily → change label → save.*
-*Show: superseded badge on old label.*
+Show `docs/architecture.md` or keep the inspector visible.
 
----
+> Under the hood, this is a production-style MemoryAgent: FastAPI on Alibaba Function Compute, Docker image in Alibaba Container Registry, optional OSS media storage, Qwen for candidate reasoning, vision grounding, cue planning, and review summaries.
+>
+> The deterministic layer handles ranking, consent, cue safety, answer hiding, and adaptive memory updates.
+>
+> ReVoice does not just remember what the user said. It remembers what helped them say it.
 
-## 2:35–3:00 — Architecture close
+End on the Progress page or confirmed success screen.
 
-> "Under the hood: Qwen Cloud for candidate generation and vision grounding.
-> Alibaba Cloud OSS for the avatar images. Function Compute for serverless hosting.
-> The scoring and cue logic are deterministic Python — 15 unit tests, all green.
-> Eval suite: ReVoice 7 out of 7. Baselines: 2 out of 7."
+## Must-Show Moments
 
-*Show: docs/architecture.md diagram in browser — Mermaid visible.*
-*Show briefly: evals/RESULTS.md table.*
+- Deployed URL or Function Compute URL.
+- `Qwen cue plan` badge.
+- Memory Inspector Qwen Trace.
+- Candidate answer hidden before reveal.
+- Learned Cue Preference section.
+- Progress Review.
+- Mention Track 1: MemoryAgent.
 
-> "ReVoice. The path that worked before is the path we replay —
-> shorter, every time."
+## Backup If Something Fails Live
 
----
-
-## Backup talking points (if time allows)
-
-- Inspector tooltip: hover over score labels — each has a plain-language tooltip
-- Response latency shown bottom of inspector (typically <1.5s on mock, ~2-4s live)
-- The `assistance_level` is deterministic — two independent contexts, not an LLM decision
-- Uncertainty grows automatically if a concept goes un-practiced for > 7 days (gap decay)
+- If live Qwen is slow, say: "The architecture supports mock mode for local testing, but the deployed judging configuration uses Qwen Cloud."
+- If image upload is not ready, skip it; the text-memory flow is stronger.
+- If cue preference is empty, perform one successful hint outcome first, then refresh Progress.

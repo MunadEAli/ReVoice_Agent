@@ -1,172 +1,144 @@
-# ReVoice — Multimodal Memory Agent
+# ReVoice - Qwen-Powered Adaptive Memory Agent
 
-> Built for the **MemoryAgent track** of the Global AI Hackathon Series with Qwen Cloud.
+Built for **Track 1: MemoryAgent** in the Global AI Hackathon with Qwen Cloud.
 
-ReVoice helps a person who knows what they mean but cannot retrieve the exact word. This is a common experience in aphasia, age-related cognitive decline, mild TBI, and other conditions affecting lexical access — estimated to affect over 2 million people in the US alone [1].
+ReVoice helps a person who knows what they mean but cannot retrieve the exact word. Instead of only storing facts, ReVoice stores the **recovery path**: which cues helped this person recover this concept before, which cues failed, and how much help they needed.
 
-Most memory agents store **facts**. ReVoice stores something different: the **recovery path** — the specific sequence of personal cues (a photograph, a semantic frame, a first sound) that helped this person successfully communicate this concept before — and replays a smaller, more targeted version of that path each time the concept comes up again.
+The result is a memory agent that adapts across sessions. It can hide the answer, generate safe personalized hints with Qwen, learn which cue styles work, and gradually offer less assistance as recall improves.
 
-After two independent successes in different session contexts, the system **automatically reduces** the level of assistance offered for that concept. No clinical judgment, no manual adjustment — the rule runs deterministically on the stored episode data.
+## Why It Fits MemoryAgent
 
-**Safety boundary:** ReVoice never diagnoses, prescribes, infers emotion, or claims clinical improvement. Every candidate meaning is confirmed by an explicit user action before being treated as final. Corrections supersede history rather than deleting it.
+| Requirement | ReVoice implementation |
+|---|---|
+| Persistent memory | SQLite/SQLAlchemy stores users, concepts, sessions, attempts, cue events, ability states, cue preferences, corrections, policies, and audits |
+| Learns from experience | Successful/failed cue outcomes update concept ability and user/category cue preferences |
+| Better decisions over time | Future Qwen hint prompts include learned cue preferences, including for newly added concepts |
+| Efficient retrieval | Recovery-Path Similarity Score packs only top memories into Qwen context |
+| Timely forgetting/correction | Superseded concepts are excluded; uncertainty grows after long gaps |
+| Limited context windows | High-cost irrelevant media is penalized before Qwen context packing |
+| Human checkpoint | Every candidate requires explicit confirmation |
+| Qwen Cloud usage | Candidate reasoning, vision grounding, adaptive cue planning, and review summaries |
 
----
+## Core Demo
 
-## How it works
+1. Margaret types `granddaughter`.
+2. ReVoice retrieves and ranks her memories.
+3. Qwen proposes candidate meanings from packed memory context.
+4. The UI hides exact answers as `Possible person match` so hints do not spoil recall.
+5. Qwen generates an adaptive cue plan using relationship context, session context, and learned cue preferences.
+6. Deterministic safety code scrubs the target answer before final reveal.
+7. Cue outcomes update memory:
+   - concept-level assistance state
+   - user/category-level cue preferences
+8. Future hints for Margaret, including newly added people, are biased toward cue styles that helped her before.
 
-1. The user types a partial phrase, stand-in word, or uploads a photo (`"granddaughter"`, `"blue paper"`, `"my usual drink"`)
-2. The **Recovery-Path Similarity Score** ranks stored concepts using 6 factors:
-   - **Relevance** — keyword + semantic category expansion (handles word-finding substitutions)
-   - **Salience** — whether this concept's category is active in the session context
-   - **Recovery similarity** — past cue-sequence success rate, weighted by rung efficiency and recency
-   - **Uncertainty** — how confident the system is about current ability
-   - **Recency transfer** — bonus for prior success in a *different* context
-   - **Cost penalty** — discounts high-token media concepts to respect context-window budget
-3. Qwen Cloud (`qwen-max` / `qwen-vl-max`) proposes up to 3 candidate meanings with a plain-language "why shown"
-4. The user explicitly confirms or rejects each candidate — nothing auto-advances
-5. If they need help, the **cue ladder** (4 rungs: photo → semantic frame → first letters → reveal) offers the smallest useful nudge first
-6. After two independent successes in different contexts, the assistance level drops automatically
-7. The **Memory Inspector** panel shows the full reasoning live during the session
-8. The **Progress Review** tab generates a nonclinical plain-English summary of improvement trends
+## Qwen Cloud Usage
 
-See [docs/architecture.md](docs/architecture.md) for the system diagram.
+`services/qwen/client.py` uses DashScope's OpenAI-compatible API.
 
----
+- `qwen-max`: candidate reasoning over packed memory context.
+- `qwen-vl-max`: image-grounded input when the user uploads a photo.
+- `qwen-turbo`: adaptive cue-bank generation.
+- `qwen-max`: nonclinical progress summaries.
 
-## Demo personas
+For local testing:
 
-Two pre-seeded users demonstrate multi-user capability and cross-session learning:
+```env
+USE_MOCK_QWEN=true
+```
 
-| User | Concepts | Notable state |
+For final judging:
+
+```env
+USE_MOCK_QWEN=false
+DASHSCOPE_API_KEY=your_qwen_cloud_key
+DASHSCOPE_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+```
+
+The Memory Inspector shows Qwen mode/model metadata during the demo.
+
+## Screens
+
+- **Login:** choose demo reference person: Margaret or James.
+- **Session:** free text, image upload, context selector, hidden candidate cards, Qwen cue plans, reveal-on-demand.
+- **Memory Inspector:** Qwen trace, score breakdown, cue ladder, learned cue preferences, ability state, latency.
+- **Progress Review:** per-concept progress, learned cue styles, Qwen-generated nonclinical summary.
+- **Correction:** supersede incorrect concepts without deleting history.
+
+## Demo Personas
+
+| User | Concepts | Demonstrates |
 |---|---|---|
-| **Margaret** | Lily (granddaughter), Michael (son), Riverside Clinic, Insurance Form, Iced Tea, Metformin\*, Lily's Birthday Party | Lily/Iced Tea/Clinic/Insurance Form already at level 3 (improved from level 4); Metformin is caregiver-only (policy-gated) |
-| **James** | Sarah (wife), Community Center, Black Coffee | Sarah/Black Coffee at level 3; Community Center still at 4 (needed full reveal) |
+| Margaret | Lily, Michael, Riverside Clinic, Insurance Form, Iced Tea, Metformin, Lily's Birthday Party | family cues, document/place/order memories, caregiver-only medication gate |
+| James | Sarah, Community Center, Black Coffee | separate user memory and cue preferences |
 
-\*Metformin is `sensitivity=caregiver_only` and will not appear in the regular user retrieval — demonstrating the consent gate.
+Metformin is `caregiver_only`, so a regular Margaret session should not surface it.
 
----
+## Local Setup
 
-## Setup
-
-```bash
-# Clone
-git clone https://github.com/MunadEAli/ReVoice_Agent.git
-cd ReVoice_Agent
-
-# Python backend
+```powershell
 python -m venv .venv
-.venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # macOS/Linux
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-# Environment
-cp .env.example .env
-# Fill in DASHSCOPE_API_KEY for live Qwen Cloud (optional — USE_MOCK_QWEN=true works without it)
+copy .env.example .env
+python data\demo_persona\seed.py
 
-# Seed both demo personas (creates revoice.db)
-python data/demo_persona/seed.py
-
-# Start API
-uvicorn services.api.main:app --reload
-# http://localhost:8000/docs   (Swagger UI)
-# http://localhost:8000/health
-
-# Frontend (separate terminal)
-cd apps/web
-npm install
-npm run dev
-# http://localhost:5173
+uvicorn services.api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
----
+In a second terminal:
 
-## Run tests
-
-```bash
-pytest tests/ -v                    # 15 unit tests (scoring + ability-state)
-python evals/test_cases.py          # 7 eval cases — writes evals/RESULTS.md
+```powershell
+cd apps\web
+npm.cmd install
+npm.cmd run dev -- --host 127.0.0.1
 ```
 
----
+Open:
 
-## Key features by screen
-
-### Session screen
-- Free-text input OR photo upload (routed to `qwen-vl-max` automatically)
-- Context selector (Home, Café, Appointment, Clinic, Family call…) boosts salience scoring
-- 4-rung cue ladder — starts at the user's current ability level, not always at rung 4
-- Explicit confirmation required at every step; nothing auto-advances
-- **Memory Inspector panel** (always visible): live score breakdown per candidate, cue-ladder state with outcome dots, ability-state bar, response latency
-
-### Progress review
-- Per-concept ability cards with progress bars and badges (Mastered / Good progress / Improving)
-- Plain-English summary generated by `qwen-max` (nonclinical language enforced in prompt)
-- Session count and improvement trend visible at a glance
-
-### Correction screen
-- Select any concept, enter a corrected label
-- Old label marked `superseded` — excluded from all future retrievals, but preserved in audit log
-- Correction history tracked in the `corrections` table
-
----
-
-## Project structure
-
-```
-services/
-  api/          FastAPI app, routes, orchestrator
-  memory/       scoring.py (Recovery-Path Similarity Score), retrieval.py
-  policy/       cue_ladder.py, ability.py
-  qwen/         client.py (live + mock)
-  storage/      oss_client.py (Alibaba OSS)
-packages/
-  schemas/      SQLAlchemy models (9 tables), db.py
-apps/web/       Vite + React frontend (Session, Progress, Correction screens)
-data/
-  demo_persona/ seed.py (Margaret + James), generate_avatars.py, avatars/
-evals/          baselines.py, test_cases.py, RESULTS.md
-tests/          test_scoring.py, test_ability.py
-infra/alibaba/  s.yaml (Serverless Devs), Dockerfile
-docs/           architecture.md, demo_script.md
+```text
+http://127.0.0.1:5173/
 ```
 
----
+## Tests
 
-## Alibaba Cloud services (proof of deployment)
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests\test_cue_ladder.py tests\test_cue_preferences.py tests\test_ability.py tests\test_scoring.py
+npm.cmd run build
+```
 
-| Service | File |
-|---|---|
-| **OSS** (avatar image storage) | [services/storage/oss_client.py](services/storage/oss_client.py) |
-| **Function Compute** (serverless container) | [infra/alibaba/s.yaml](infra/alibaba/s.yaml) |
-| **Container Registry** | [DEPLOY.md](DEPLOY.md) (step 4) |
+Current focused verification: **24 backend tests passing** plus production frontend build passing.
 
-See [DEPLOY.md](DEPLOY.md) for the full 6-command deploy walkthrough.
+## Architecture
 
----
+See [docs/architecture.md](docs/architecture.md).
 
-## Evaluation results
+High-level stack:
 
-ReVoice scored **7/7** across defined test cases. Baselines (memoryless and transcript-RAG) failed 5/7.
-Full results: [evals/RESULTS.md](evals/RESULTS.md)
+- Frontend: Vite + React + TypeScript.
+- Backend: FastAPI.
+- Memory: SQLite/SQLAlchemy.
+- Qwen Cloud: candidate reasoning, vision grounding, cue planning, review summaries.
+- Alibaba Cloud deployment: Function Compute custom container + Container Registry + optional OSS media.
 
----
+## Alibaba Cloud Deployment
 
-## References
+See [DEPLOY.md](DEPLOY.md).
 
-[1] Fridriksson, J., et al. (2012). "Chronic Broca's area lesions causing aphasia are associated with specific executive function deficits." *Brain*, 135(8), 2390–2399.
+Required proof files:
 
-[2] Helm-Estabrooks, N. (2002). "Cognition and aphasia: A discussion and a study." *Journal of Communication Disorders*, 35(2), 171–186.
+- [infra/alibaba/s.yaml](infra/alibaba/s.yaml) - Function Compute custom container.
+- [Dockerfile](Dockerfile) - deployable container image.
+- [services/qwen/client.py](services/qwen/client.py) - Qwen Cloud integration.
+- [services/storage/oss_client.py](services/storage/oss_client.py) - Alibaba OSS integration.
 
-[3] Baddeley, A. (2000). "The episodic buffer: a new component of working memory?" *Trends in Cognitive Sciences*, 4(11), 417–423. — contextual cue grounding for the cue-ladder design.
+For final demo, deploy first, then record the video from the deployed URL with `USE_MOCK_QWEN=false`.
 
----
+## Submission Description
 
-## Devpost submission description
+ReVoice is a Qwen-powered adaptive memory agent for people with word-finding difficulty. It remembers not only facts, but the recovery path that helped a user retrieve a word: semantic cues, personal context, sentence completion, first sounds, and final reveal. It learns from successful and failed cue outcomes, adapts future Qwen hint plans to each user, hides answers before final reveal, and exposes its reasoning in a live Memory Inspector. Built for the MemoryAgent track, ReVoice demonstrates persistent memory, efficient retrieval under context limits, explicit human confirmation, safety gates, correction handling, and Alibaba Cloud deployment readiness.
 
-> ReVoice is a multimodal memory agent for people who know what they mean but cannot retrieve the word — a condition affecting millions with aphasia, age-related cognitive decline, or mild TBI. Built for the MemoryAgent track on Qwen Cloud.
->
-> Most memory agents store facts about a user. ReVoice stores something different: the recovery path — the specific sequence of personal cues that helped this person successfully communicate this concept before — and replays a smaller, more targeted version of that path each time the concept comes up again.
->
-> A formula-based Recovery-Path Similarity Score with semantic category expansion ranks which stored memory is worth surfacing next, under an explicit context-token budget, with consent checked before ranking. Every candidate is shown to the user for confirmation or rejection; nothing is finalized without an explicit yes. Corrections supersede old facts instead of deleting history, and a deterministic ability-state rule reduces the assistance offered once the same concept has been retrieved independently in two different contexts.
->
-> The backend runs on Alibaba Cloud Function Compute, calling Qwen Cloud for both vision-language grounding of photos and language reasoning for candidate generation. Two demo users (Margaret and James) demonstrate multi-user capability. The demo video shows a user receiving less assistance in session 2 than in session 1 — and a live Memory Inspector panel that makes that improvement visible as it happens.
+## License
+
+MIT. See [LICENSE](LICENSE).

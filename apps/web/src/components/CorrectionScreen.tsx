@@ -42,11 +42,10 @@ export default function CorrectionScreen({ ownerId, onDone }: Props) {
     try {
       const r = await api.correctConcept(selected, newLabel.trim(), ownerId, reason || undefined);
       setResult(r);
-      // Refresh concept list
       const updated = await api.listConcepts(ownerId);
       setConcepts(updated);
-    } catch (e: any) {
-      setError(e.message ?? "Correction failed");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Correction failed");
     } finally {
       setLoading(false);
     }
@@ -78,7 +77,7 @@ export default function CorrectionScreen({ ownerId, onDone }: Props) {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 12 }}>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <button
             className="btn-primary"
             onClick={() => {
@@ -103,7 +102,7 @@ export default function CorrectionScreen({ ownerId, onDone }: Props) {
       <h2>Correct a Concept</h2>
       <p style={{ color: "var(--muted)", marginBottom: 24, fontSize: "0.9rem" }}>
         Select a concept label that needs to be corrected. The old label will be marked
-        superseded — it won't be deleted, but it will no longer appear in suggestions.
+        superseded; it will not be deleted, but it will no longer appear in suggestions.
       </p>
 
       {error && <div className="status-bar error">{error}</div>}
@@ -170,7 +169,7 @@ export default function CorrectionScreen({ ownerId, onDone }: Props) {
           onClick={handleCorrect}
           disabled={loading || !selected || !newLabel.trim()}
         >
-          {loading ? "Saving…" : "Save correction"}
+          {loading ? "Saving..." : "Save correction"}
         </button>
         <button className="btn-ghost" onClick={onDone}>
           Cancel

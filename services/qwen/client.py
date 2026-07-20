@@ -3,7 +3,8 @@ Qwen Cloud client — wraps DashScope's OpenAI-compatible API.
 
 Jobs:
   1. propose_candidate_intents(signal, context_bundle) -> List[Candidate]
-  2. generate_review_summary(user_id, ability_states, attempts) -> str
+  2. generate_hint_cue_bank(concept, context) -> dict
+  3. generate_review_summary(user_id, ability_states, attempts) -> str
 
 Set USE_MOCK_QWEN=false and DASHSCOPE_API_KEY to use live Qwen Cloud.
 Default: USE_MOCK_QWEN=true (app fully functional without an API key).
@@ -147,6 +148,39 @@ def _mock_review_summary(user_id: str, ability_states: list, attempts: list) -> 
     )
 
 
+def _mock_hint_cue_bank(concept: dict, context: dict) -> dict:
+    category = concept.get("category", "memory")
+    relation = context.get("relationship_label") or context.get("context_frame")
+    place = context.get("familiar_place")
+    preferences = context.get("cue_preferences") or []
+    preferred = preferences[0].get("strategy") if preferences else None
+    if relation:
+        personal_context = relation
+    elif place:
+        personal_context = f"This {category} is connected with {place}."
+    else:
+        personal_context = f"This is a familiar {category} from your stored memories."
+
+    return {
+        "provider": "qwen-mock",
+        "model": FAST_MODEL,
+        "personal_context": personal_context,
+        "semantic_features": [
+            f"Category: {category}.",
+            f"Think about where this {category} usually comes up.",
+            "Picture the real situation around it.",
+            "Try describing one feature before trying the word.",
+        ],
+        "context_frame": context.get("context_frame") or personal_context,
+        "sentence_completion": _generic_sentence_completion(category),
+        "sound_hint": "",
+        "masked_word": "",
+        "syllables": "",
+        "visual_action": "Pause, picture it, then try the first sound.",
+        "preference_note": f"Weighted toward learned strategy: {preferred}" if preferred else "",
+    }
+
+
 # ─── Live client ──────────────────────────────────────────────────────────────
 
 def _get_openai_client():
@@ -266,10 +300,118 @@ def _live_review_summary(user_id: str, ability_states: list, attempts: list) -> 
         return _mock_review_summary(user_id, ability_states, attempts)
 
 
+def _live_hint_cue_bank(concept: dict, context: dict) -> dict:
+    client = _get_openai_client()
+
+    label = concept.get("label", "")
+    category = concept.get("category", "memory")
+    relationship = context.get("relationship_label") or ""
+    context_frame = context.get("context_frame") or ""
+    familiar_place = context.get("familiar_place") or ""
+    session_context = context.get("session_context") or "general"
+    cue_preferences = context.get("cue_preferences") or []
+    preference_lines = "\n".join(
+        f"- {p.get('strategy')} for {p.get('category')}: "
+        f"score={p.get('score')}, successes={p.get('successes')}, failures={p.get('failures')}, "
+        f"success_rate={p.get('success_rate')}"
+        for p in cue_preferences[:5]
+    )
+
+    system_prompt = (
+        "You are ReVoice's cue planner for a memory and word-retrieval support app. "
+        "You help people who may have word-finding difficulty by producing cue content, not answers.\n\n"
+        "Your task: create a general cue bank for one personal concept. "
+        "The app will show the full target word ONLY in the final reveal step. "
+        "Do not reveal the target label or any full target word in semantic_features, personal_context, "
+        "context_frame, sentence_completion, sound_hint, masked_word, syllables, or visual_action. "
+        "Use blanks, category words, relationship words, functions, sensory details, and context instead.\n\n"
+        "Good cue types:\n"
+        "- semantic feature: what kind of thing it is, what it is used for, where it appears\n"
+        "- autobiographical cue: relationship, routine, place, event, without saying the answer\n"
+        "- sentence completion with blanks\n"
+        "- first-sound guidance without spelling the whole word\n"
+        "- masked word shape using underscores\n"
+        "- tap/rhythm pattern using only 'tap', not syllables from the answer\n\n"
+        "Use learned cue preferences when provided. If a strategy has high score or success_rate, "
+        "shape the cues toward that style for this concept. If a strategy has repeated failures, "
+        "avoid overusing it and offer a different route.\n\n"
+        "Return ONLY valid JSON with this exact object shape:\n"
+        "{"
+        "\"personal_context\":\"...\","
+        "\"semantic_features\":[\"...\",\"...\",\"...\",\"...\"],"
+        "\"context_frame\":\"...\","
+        "\"sentence_completion\":\"Sentence: ... ____ ...\","
+        "\"sound_hint\":\"First sound: ...\","
+        "\"masked_word\":\"Word shape: ...\","
+        "\"syllables\":\"Rhythm: tap - tap\","
+        "\"visual_action\":\"...\""
+        "}"
+    )
+
+    user_prompt = (
+        f"Target label, hidden from user until final reveal: {label}\n"
+        f"Category: {category}\n"
+        f"Session context: {session_context}\n"
+        f"Known relationship/context cue: {relationship or '(none)'}\n"
+        f"Known context frame: {context_frame or '(none)'}\n"
+        f"Familiar place: {familiar_place or '(none)'}\n\n"
+        f"Learned cue preferences for this user/category:\n{preference_lines or '(none yet)'}\n\n"
+        "Create warm, specific, plain-language cues. Keep each cue short. "
+        "Do not include the target label or any target word before final reveal."
+    )
+
+    try:
+        resp = client.chat.completions.create(
+            model=FAST_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            response_format={"type": "json_object"},
+            max_tokens=550,
+            temperature=0.25,
+        )
+        raw = json.loads(resp.choices[0].message.content)
+        return {
+            "provider": "qwen-live",
+            "model": FAST_MODEL,
+            "personal_context": str(raw.get("personal_context", "")),
+            "semantic_features": [
+                str(item) for item in raw.get("semantic_features", [])[:4]
+                if isinstance(item, str) and item.strip()
+            ],
+            "context_frame": str(raw.get("context_frame", "")),
+            "sentence_completion": str(raw.get("sentence_completion", "")),
+            "sound_hint": str(raw.get("sound_hint", "")),
+            "masked_word": str(raw.get("masked_word", "")),
+            "syllables": str(raw.get("syllables", "")),
+            "visual_action": str(raw.get("visual_action", "")),
+            "preference_note": "Generated using learned cue preferences." if cue_preferences else "",
+        }
+    except Exception:
+        return _mock_hint_cue_bank(concept, context)
+
+
 # ─── Public interface ─────────────────────────────────────────────────────────
 
 def _use_mock() -> bool:
     return os.environ.get("USE_MOCK_QWEN", "true").lower() in ("1", "true", "yes")
+
+
+def qwen_runtime_metadata(image_url: Optional[str] = None) -> dict:
+    """Small provenance payload for judge-facing traces and the inspector UI."""
+    return {
+        "provider": "Qwen Cloud / DashScope compatible API",
+        "mode": "mock" if _use_mock() else "live",
+        "text_model": TEXT_MODEL,
+        "vision_model": VISION_MODEL,
+        "selected_model": VISION_MODEL if image_url else TEXT_MODEL,
+        "multimodal": bool(image_url),
+        "base_url": os.environ.get(
+            "DASHSCOPE_BASE_URL",
+            "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        ),
+    }
 
 
 def propose_candidate_intents(
@@ -288,6 +430,18 @@ def propose_candidate_intents(
     return _live_propose(signal_text, context_bundle)
 
 
+def generate_hint_cue_bank(concept: dict, context: dict) -> dict:
+    """
+    Generate a reusable cue bank for one concept.
+
+    The cue ladder still sanitizes the returned text before showing it, so this
+    function can use the target label internally while the UI remains protected.
+    """
+    if _use_mock():
+        return _mock_hint_cue_bank(concept, context)
+    return _live_hint_cue_bank(concept, context)
+
+
 def generate_review_summary(
     user_id: str,
     ability_states: list,
@@ -297,3 +451,14 @@ def generate_review_summary(
     if _use_mock():
         return _mock_review_summary(user_id, ability_states, attempts)
     return _live_review_summary(user_id, ability_states, attempts)
+
+
+def _generic_sentence_completion(category: str) -> str:
+    return {
+        "person": "Sentence: I am thinking of the person who is my ____.",
+        "document": "Sentence: I need to bring the ____.",
+        "order": "Sentence: I usually order ____.",
+        "place": "Sentence: I need to go to the ____.",
+        "medication": "Sentence: My routine includes the medicine ____.",
+        "event": "Sentence: The upcoming plan is ____.",
+    }.get(category, "Sentence: The word I want is ____.")

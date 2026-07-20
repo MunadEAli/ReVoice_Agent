@@ -32,13 +32,14 @@ def test_two_distinct_contexts_lower_level():
     assert state.recent_contexts == []      # accumulator cleared
 
 
-def test_same_context_twice_does_not_lower_level():
+def test_same_context_twice_lowers_level_after_practice():
     state = _base_state(level=4, uncertainty=0.5)
     now = _dt()
 
     state = update_ability(state, Episode(context="home", independent_success=True), now)
     state = update_ability(state, Episode(context="home", independent_success=True), now)
-    assert state.assistance_level == 4   # same context, no change
+    assert state.assistance_level == 3   # repeated success should visibly reduce help
+    assert state.recent_contexts == []
 
 
 # ─── Level floors at MIN_LEVEL (1) ────────────────────────────────────────────

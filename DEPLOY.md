@@ -1,6 +1,8 @@
 # ReVoice Deployment Guide
 
-Deploy the ReVoice API to Alibaba Cloud Function Compute as a custom container.
+Deploy ReVoice to Alibaba Cloud Function Compute as a custom container.
+
+For the hackathon, record the final demo **after** this deployment so the video shows an Alibaba Cloud URL and live Qwen mode.
 
 ## Prerequisites
 
@@ -82,8 +84,11 @@ After deployment, Serverless Devs prints the public HTTPS URL.
 s cli fc3 function update \
   --region ap-southeast-1 \
   --functionName revoice-api \
-  --environmentVariables '{"DASHSCOPE_API_KEY":"your_key","USE_MOCK_QWEN":"false","ALIBABA_ACCESS_KEY_ID":"...","OSS_BUCKET_NAME":"revoice-media"}'
+  --environmentVariables '{"DASHSCOPE_API_KEY":"your_key","DASHSCOPE_BASE_URL":"https://dashscope-intl.aliyuncs.com/compatible-mode/v1","USE_MOCK_QWEN":"false","ALIBABA_ACCESS_KEY_ID":"...","OSS_BUCKET_NAME":"revoice-media"}'
 ```
+
+For a production-grade persistence story, use a durable DB and set `DATABASE_URL`.
+SQLite inside a serverless container is acceptable for a hackathon demo, but it may not survive redeploys or container replacement.
 
 ---
 
@@ -109,3 +114,14 @@ docker run -p 8000:8000 \
 | OSS | Avatar image storage | `services/storage/oss_client.py` |
 
 These three files are your **Proof of Alibaba Cloud Deployment** evidence for the hackathon submission.
+
+## Final smoke test
+
+Before recording:
+
+1. Open the Function Compute URL.
+2. Choose Margaret.
+3. Type `granddaughter`.
+4. Confirm the Memory Inspector shows Qwen live mode.
+5. Click `Give me a hint` and confirm the cue card shows `Qwen cue plan`.
+6. Complete a successful recall and open Progress Review to show learned cue style.

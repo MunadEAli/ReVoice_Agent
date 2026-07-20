@@ -89,6 +89,22 @@ def test_concept_with_successful_recovery_outranks_one_without():
     )
 
 
+def test_personal_cue_granddaughter_boosts_lily_above_unrelated_document():
+    task = _make_task(
+        text="grand daughter",
+        category_hint=None,
+        session_context="family_call",
+        active_categories=["person", "event"],
+    )
+    lily = _make_concept("person.lily", "Lily", "person", media_url="oss://lily.png")
+    lily.personal_cues = ["grand daughter", "granddaughter", "grandchild"]
+    insurance = _make_concept("document.insurance_form", "Insurance Form", "document")
+
+    results = rank_candidates([insurance, lily], task, [], [], "user", "read", [], top_k=2)
+
+    assert results[0].concept_id == "person.lily"
+
+
 # ─── Cost: high-cost media candidate loses to low-cost text when relevance equal
 
 def test_high_cost_media_loses_to_low_cost_text_equal_relevance():
@@ -138,6 +154,22 @@ def test_permission_removed_excludes_concept():
     policies = [{"subject": "caregiver", "resource_scope": "person", "operation": "read", "allow": 1}]
     result = score_concept(concept, task, None, [], "user", "read", policies)
     assert result.excluded is True
+
+
+def test_caregiver_only_sensitivity_overrides_broad_user_policy():
+    concept = _make_concept("medication.metformin", "metformin", "medication")
+    concept.sensitivity = "caregiver_only"
+    task = _make_task(text="pill", category_hint="medication", active_categories=["medication"])
+    policies = [{"subject": "user", "resource_scope": "all", "operation": "read", "allow": 1}]
+
+    user_result = score_concept(concept, task, None, [], "user", "read", policies)
+    caregiver_result = score_concept(concept, task, None, [], "caregiver", "read", [
+        {"subject": "caregiver", "resource_scope": "all", "operation": "read", "allow": 1}
+    ])
+
+    assert user_result.excluded is True
+    assert user_result.exclusion_reason == "consent_denied"
+    assert caregiver_result.excluded is False
 
 
 # ─── Context budget: irrelevant high-cost concept penalized ──────────────────

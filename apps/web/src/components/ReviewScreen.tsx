@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import type { CuePreferenceView } from "../api";
 
 interface Props {
   ownerId: string;
@@ -18,6 +19,7 @@ interface ReviewData {
   user_id: string;
   summary: string;
   ability_states: AbilityRow[];
+  cue_preferences: CuePreferenceView[];
   session_count: number;
 }
 
@@ -29,19 +31,19 @@ const LEVEL_LABEL: Record<number, string> = {
 };
 
 const LEVEL_COLOR: Record<number, string> = {
-  1: "#2d6a4f",
-  2: "#40916c",
-  3: "#f4a261",
-  4: "#e63946",
+  1: "#245f73",
+  2: "#5d7c63",
+  3: "#d99b42",
+  4: "#c23b42",
 };
 
 const CATEGORY_ICON: Record<string, string> = {
-  person: "👤",
-  document: "📄",
-  order: "☕",
-  place: "📍",
-  medication: "💊",
-  event: "🎉",
+  person: "P",
+  document: "D",
+  order: "O",
+  place: "L",
+  medication: "M",
+  event: "E",
 };
 
 export default function ReviewScreen({ ownerId }: Props) {
@@ -54,7 +56,7 @@ export default function ReviewScreen({ ownerId }: Props) {
     setError("");
     api.getReview(ownerId)
       .then((d) => setData(d as ReviewData))
-      .catch((e) => setError(e.message ?? "Could not load review"))
+      .catch((e) => setError(e instanceof Error ? e.message : "Could not load review"))
       .finally(() => setLoading(false));
   }, [ownerId]);
 
@@ -62,7 +64,7 @@ export default function ReviewScreen({ ownerId }: Props) {
     setLoading(true);
     api.getReview(ownerId)
       .then((d) => setData(d as ReviewData))
-      .catch((e) => setError(e.message))
+      .catch((e) => setError(e instanceof Error ? e.message : "Could not load review"))
       .finally(() => setLoading(false));
   };
 
@@ -73,34 +75,53 @@ export default function ReviewScreen({ ownerId }: Props) {
           <h2>Progress Review</h2>
           <p style={{ color: "var(--muted)", fontSize: "0.9rem", marginTop: 4 }}>
             How {ownerId.charAt(0).toUpperCase() + ownerId.slice(1)}'s memory paths are developing
-            {data ? ` — ${data.session_count} session${data.session_count !== 1 ? "s" : ""} recorded` : ""}
+            {data ? ` - ${data.session_count} session${data.session_count !== 1 ? "s" : ""} recorded` : ""}
           </p>
         </div>
         <button className="btn-ghost" onClick={reload} disabled={loading} style={{ minWidth: 80 }}>
-          {loading ? "Loading…" : "Refresh"}
+          {loading ? "Loading..." : "Refresh"}
         </button>
       </div>
 
       {error && <div className="status-bar error">{error}</div>}
 
       {loading && !data && (
-        <div style={{ color: "var(--muted)", padding: "24px 0" }}>Generating progress summary…</div>
+        <div style={{ color: "var(--muted)", padding: "24px 0" }}>Generating progress summary...</div>
       )}
 
       {data && (
         <>
-          {/* Qwen-generated summary */}
           <div className="review-summary-card">
             <div className="review-summary-label">Summary</div>
             <p className="review-summary-text">{data.summary}</p>
           </div>
 
-          {/* Concept ability cards */}
+          <div className="review-legend cue-learning-card">
+            <div className="review-legend-title">Learned Cue Style</div>
+            {data.cue_preferences.length === 0 ? (
+              <p style={{ color: "var(--muted)", fontSize: "0.88rem" }}>
+                No hint outcomes yet. As hints succeed or fail, ReVoice learns which cue styles work best for this person.
+              </p>
+            ) : (
+              <div className="cue-preference-list">
+                {data.cue_preferences.slice(0, 4).map((p) => (
+                  <div className="cue-preference-row" key={`${p.category}-${p.strategy}`}>
+                    <div>
+                      <strong>{p.strategy}</strong>
+                      <span>{p.category} | {(p.success_rate * 100).toFixed(0)}% success</span>
+                    </div>
+                    <em>{p.score.toFixed(2)}</em>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="review-concepts-grid">
             {data.ability_states.map((s) => {
               const pct = ((4 - s.assistance_level) / 3) * 100;
               const color = LEVEL_COLOR[s.assistance_level] ?? "#999";
-              const icon = CATEGORY_ICON[s.category] ?? "●";
+              const icon = CATEGORY_ICON[s.category] ?? "C";
               return (
                 <div className="review-concept-card" key={s.concept_id}>
                   <div className="review-concept-top">
@@ -146,7 +167,6 @@ export default function ReviewScreen({ ownerId }: Props) {
             })}
           </div>
 
-          {/* How the levels work */}
           <div className="review-legend">
             <div className="review-legend-title">How the assistance level works</div>
             <div className="review-legend-grid">
@@ -157,7 +177,7 @@ export default function ReviewScreen({ ownerId }: Props) {
                     style={{ background: LEVEL_COLOR[lvl] }}
                   />
                   <div>
-                    <strong>Level {lvl}</strong> — {LEVEL_LABEL[lvl]}
+                    <strong>Level {lvl}</strong> - {LEVEL_LABEL[lvl]}
                     <div style={{ fontSize: "0.78rem", color: "var(--muted)" }}>
                       {lvl === 1 && "Starts with photo; no further hint needed"}
                       {lvl === 2 && "Starts with photo; may need one more cue"}
@@ -170,7 +190,7 @@ export default function ReviewScreen({ ownerId }: Props) {
             </div>
             <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginTop: 12 }}>
               The level reduces automatically after two independent successes in different
-              session contexts — no manual adjustment needed.
+              session contexts - no manual adjustment needed.
             </p>
           </div>
         </>

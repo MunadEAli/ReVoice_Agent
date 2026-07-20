@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from packages.schemas.models import (
     Concept, AbilityState as AbilityStateModel, CueEvent,
-    AuditEvent, AccessPolicy,
+    AuditEvent, AccessPolicy, Relationship,
 )
 from services.memory.scoring import (
     ConceptSnapshot, AbilitySnapshot, CueHistoryEntry, TaskContext,
@@ -29,6 +29,34 @@ def _load_policies(db: Session, requester: str) -> List[dict]:
     ]
 
 
+_RELATION_CUE_TERMS = {
+    "grandchild_of": ["granddaughter", "grand daughter", "grandson", "grand son", "grandchild", "grand child"],
+    "parent_of": ["son"],
+    "spouse_of": ["wife", "husband", "spouse", "partner"],
+    "needed_at": ["needed at", "bring to", "for appointment"],
+    "for_person": ["birthday", "party", "for"],
+}
+
+
+def _load_personal_cues(db: Session, concept_ids: List[str]) -> dict[str, List[str]]:
+    """Derive concept-specific stand-in cues from stored relationships."""
+    if not concept_ids:
+        return {}
+
+    cues: dict[str, set[str]] = {cid: set() for cid in concept_ids}
+    rels = db.query(Relationship).filter(
+        Relationship.status == "active",
+        Relationship.from_concept_id.in_(concept_ids),
+    ).all()
+
+    for rel in rels:
+        cues.setdefault(rel.from_concept_id, set()).update(
+            _RELATION_CUE_TERMS.get(rel.relation_type, [])
+        )
+
+    return {cid: sorted(values) for cid, values in cues.items()}
+
+
 
 
 def retrieve_scored_candidates(
@@ -44,6 +72,7 @@ def retrieve_scored_candidates(
         .filter(Concept.owner_id == owner_id)
         .all()
     )
+    personal_cues = _load_personal_cues(db, [c.id for c in concepts_rows])
 
     snapshots = [
         ConceptSnapshot(
@@ -54,6 +83,7 @@ def retrieve_scored_candidates(
             sensitivity=c.sensitivity,
             media_url=c.media_url,
             estimated_tokens=300 if c.media_url else 50,
+            personal_cues=personal_cues.get(c.id, []),
         )
         for c in concepts_rows
     ]

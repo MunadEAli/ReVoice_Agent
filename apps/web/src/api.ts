@@ -33,12 +33,36 @@ export type AbilityStateView = {
   recent_contexts?: string[];
 };
 
+export type CuePreferenceView = {
+  category: string;
+  strategy: string;
+  successes: number;
+  failures: number;
+  score: number;
+  success_rate: number;
+  last_outcome: string | null;
+};
+
 export type InspectorPayload = {
   attempt_id: string;
   outcome: string | null;
   candidates: Candidate[];
   score_breakdown: Array<Record<string, unknown>>;
+  qwen_trace: {
+    provider: string;
+    mode: string;
+    selected_model: string;
+    text_model: string;
+    vision_model: string;
+    multimodal: boolean;
+    memory_context_count: number;
+    estimated_memory_tokens: number;
+    response_format: string;
+    top_memories: Array<{ concept_id: string; label: string; category: string; score: number }>;
+    returned_candidates: Array<{ concept_id: string; label: string; confidence: number }>;
+  } | null;
   cue_ladder: CueLadderEntry[];
+  cue_preferences: CuePreferenceView[];
   ability_state: AbilityStateView | null;
   latency_ms: number | null;
 };
@@ -111,6 +135,7 @@ export const api = {
       user_id: string;
       summary: string;
       ability_states: Array<AbilityStateView & { label: string; category: string; media_url: string | null }>;
+      cue_preferences: CuePreferenceView[];
       session_count: number;
     }>(`/reviews/${user_id}`),
 };

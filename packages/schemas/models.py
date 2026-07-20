@@ -97,6 +97,20 @@ class AbilityState(Base):
     last_observed = Column(Text, nullable=True)
 
 
+class CuePreference(Base):
+    __tablename__ = "cue_preferences"
+
+    id = Column(Text, primary_key=True)
+    owner_id = Column(Text, nullable=False)
+    category = Column(Text, nullable=False)
+    strategy = Column(Text, nullable=False)
+    successes = Column(Integer, nullable=False, default=0)
+    failures = Column(Integer, nullable=False, default=0)
+    score = Column(Float, nullable=False, default=0.0)
+    last_outcome = Column(Text, nullable=True)
+    updated_at = Column(Text, default=_now)
+
+
 class AccessPolicy(Base):
     __tablename__ = "access_policies"
 

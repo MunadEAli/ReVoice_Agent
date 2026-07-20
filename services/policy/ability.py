@@ -51,10 +51,12 @@ def update_ability(state: AbilityState, episode: Episode, now: datetime) -> Abil
             new_uncertainty = min(1.0, new_uncertainty + UNCERTAINTY_GROWTH * gap_days)
 
     if episode.independent_success:
-        # Track distinct contexts; after 2, reduce assistance level
-        if episode.context not in new_contexts:
-            new_contexts.append(episode.context)
-        if len(new_contexts) >= 2:
+        # Track successful recalls toward the next reduction. Different contexts
+        # still count, but repeated success in one context should also make the
+        # next attempt easier; otherwise users do not see progress after practice.
+        new_contexts.append(episode.context)
+        distinct_contexts = set(new_contexts)
+        if len(new_contexts) >= 2 or len(distinct_contexts) >= 2:
             new_level = max(MIN_LEVEL, new_level - 1)
             new_contexts = []        # reset context accumulator
     else:

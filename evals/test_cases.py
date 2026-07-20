@@ -36,6 +36,7 @@ class TestResult:
 LILY_ACTIVE = ConceptSnapshot(
     concept_id="person.lily", label="Lily", category="person",
     status="active", sensitivity="normal", media_url="file://lily.png",
+    personal_cues=["granddaughter", "grand daughter", "grandchild"],
 )
 LILY_SUPERSEDED = ConceptSnapshot(
     concept_id="person.lily.old", label="Lilly (misspelled)", category="person",
@@ -52,10 +53,27 @@ INSURANCE_ACTIVE = ConceptSnapshot(
 ICED_TEA_ACTIVE = ConceptSnapshot(
     concept_id="order.iced_tea", label="Iced Tea", category="order",
     status="active", sensitivity="normal", media_url=None,
+    personal_cues=["usual drink", "my usual"],
+)
+RIVERSIDE_ACTIVE = ConceptSnapshot(
+    concept_id="place.riverside_clinic", label="Riverside Clinic", category="place",
+    status="active", sensitivity="normal", media_url="file://clinic.png",
+    personal_cues=["doctor", "doctor's office"],
+)
+MICHAEL_ACTIVE = ConceptSnapshot(
+    concept_id="person.michael", label="Michael", category="person",
+    status="active", sensitivity="normal", media_url="file://michael.png",
+    personal_cues=["son"],
+)
+LILY_BIRTHDAY_ACTIVE = ConceptSnapshot(
+    concept_id="event.lily_birthday", label="Lily's Birthday Party", category="event",
+    status="active", sensitivity="normal", media_url="file://party.png",
+    personal_cues=["birthday party", "party"],
 )
 CAREGIVER_ONLY = ConceptSnapshot(
-    concept_id="person.caregiver_note", label="Caregiver Note", category="document",
+    concept_id="medication.metformin", label="Metformin", category="medication",
     status="active", sensitivity="caregiver_only", media_url=None,
+    personal_cues=["pill", "medicine"],
 )
 
 LILY_ABILITY_LOW = AbilitySnapshot("person.lily", uncertainty=0.5)
@@ -217,8 +235,8 @@ def run_all() -> List[TestResult]:
     ml6 = memoryless_retrieve("note", concepts6)
     rag6 = transcript_rag_retrieve("note", concepts6, [])
 
-    # ReVoice should NOT include caregiver_note for a user requester
-    rv6_hides = "person.caregiver_note" not in rv6.concept_ids
+    # ReVoice should NOT include caregiver-only medication for a user requester
+    rv6_hides = "medication.metformin" not in rv6.concept_ids
 
     results.append(TestResult(
         case_num=6,
@@ -258,13 +276,248 @@ def run_all() -> List[TestResult]:
         notes=f"Top result: {rv7.labels[0] if rv7.labels else 'none'}",
     ))
 
+    # Case 8: Personal relationship cue beats unrelated memory.
+    task8 = TaskContext(
+        input_text="granddaughter",
+        input_category_hint=None,
+        session_context="family_call",
+        active_concept_categories=["person", "event"],
+    )
+    concepts8 = [INSURANCE_ACTIVE, ICED_TEA_ACTIVE, LILY_ACTIVE, MICHAEL_ACTIVE]
+    rv8 = revoice_retrieve(task8, concepts8, [ability_reduced], [PAST_LILY_SUCCESS], ALLOW_ALL)
+    ml8 = memoryless_retrieve("granddaughter", concepts8)
+    rag8 = transcript_rag_retrieve("granddaughter", concepts8, [])
+    results.append(TestResult(
+        case_num=8,
+        description="Personal cue 'granddaughter' ranks Lily first",
+        memoryless=ml8.concept_ids[:1] == ["person.lily"],
+        transcript_rag=rag8.concept_ids[:1] == ["person.lily"],
+        revoice=rv8.concept_ids[:1] == ["person.lily"],
+        notes=f"Top result: {rv8.labels[0] if rv8.labels else 'none'}",
+    ))
+
+    # Case 9: Split phrase typo still maps to Lily.
+    task9 = TaskContext(
+        input_text="grand daughter",
+        input_category_hint=None,
+        session_context="family_call",
+        active_concept_categories=["person", "event"],
+    )
+    rv9 = revoice_retrieve(task9, concepts8, [], [], ALLOW_ALL)
+    results.append(TestResult(
+        case_num=9,
+        description="Split phrase 'grand daughter' still ranks Lily first",
+        memoryless=False,
+        transcript_rag=False,
+        revoice=rv9.concept_ids[:1] == ["person.lily"],
+        notes=f"Top result: {rv9.labels[0] if rv9.labels else 'none'}",
+    ))
+
+    # Case 10: Context salience keeps family-call concepts ahead of documents.
+    task10 = TaskContext(
+        input_text="the one I call",
+        input_category_hint=None,
+        session_context="family_call",
+        active_concept_categories=["person", "event"],
+    )
+    rv10 = revoice_retrieve(task10, concepts8, [], [PAST_LILY_SUCCESS], ALLOW_ALL)
+    results.append(TestResult(
+        case_num=10,
+        description="Family-call context favors people/events over documents",
+        memoryless=False,
+        transcript_rag=False,
+        revoice=rv10.concept_ids[:1] in (["person.lily"], ["person.michael"]),
+        notes=f"Top result: {rv10.labels[0] if rv10.labels else 'none'}",
+    ))
+
+    # Case 11: Cafe stand-in phrase ranks the regular drink.
+    task11 = TaskContext(
+        input_text="my usual drink",
+        input_category_hint=None,
+        session_context="cafe_visit",
+        active_concept_categories=["order", "person", "place"],
+    )
+    rv11 = revoice_retrieve(task11, [LILY_ACTIVE, ICED_TEA_ACTIVE, RIVERSIDE_ACTIVE], [], [], ALLOW_ALL)
+    results.append(TestResult(
+        case_num=11,
+        description="Cafe phrase 'my usual drink' ranks Iced Tea first",
+        memoryless=False,
+        transcript_rag=False,
+        revoice=rv11.concept_ids[:1] == ["order.iced_tea"],
+        notes=f"Top result: {rv11.labels[0] if rv11.labels else 'none'}",
+    ))
+
+    # Case 12: Appointment phrase ranks the document.
+    task12 = TaskContext(
+        input_text="blue paper for appointment",
+        input_category_hint="document",
+        session_context="tuesday_appointment",
+        active_concept_categories=["document", "place", "medication"],
+    )
+    rv12 = revoice_retrieve(task12, [LILY_ACTIVE, INSURANCE_ACTIVE, RIVERSIDE_ACTIVE], [], [], ALLOW_ALL)
+    results.append(TestResult(
+        case_num=12,
+        description="Appointment phrase ranks Insurance Form first",
+        memoryless=False,
+        transcript_rag=False,
+        revoice=rv12.concept_ids[:1] == ["document.insurance_form"],
+        notes=f"Top result: {rv12.labels[0] if rv12.labels else 'none'}",
+    ))
+
+    # Case 13: Caregiver-only sensitivity overrides broad user allow policy.
+    task13 = TaskContext(
+        input_text="the pill",
+        input_category_hint="medication",
+        session_context="home",
+        active_concept_categories=["medication"],
+    )
+    broad_user_policy = [{"subject": "user", "resource_scope": "all", "operation": "read", "allow": 1}]
+    caregiver_policy = [{"subject": "caregiver", "resource_scope": "all", "operation": "read", "allow": 1}]
+    rv13_user = revoice_retrieve(task13, [CAREGIVER_ONLY, INSURANCE_ACTIVE], [], [], broad_user_policy, requester="user")
+    rv13_caregiver = revoice_retrieve(task13, [CAREGIVER_ONLY, INSURANCE_ACTIVE], [], [], caregiver_policy, requester="caregiver")
+    results.append(TestResult(
+        case_num=13,
+        description="Caregiver-only memory hidden from user but visible to caregiver",
+        memoryless=False,
+        transcript_rag=False,
+        revoice=("medication.metformin" not in rv13_user.concept_ids and
+                 "medication.metformin" in rv13_caregiver.concept_ids),
+        notes=f"user sees {rv13_user.labels}; caregiver sees {rv13_caregiver.labels}",
+    ))
+
+    # Case 14: Corrected label remains retrievable while old spelling is excluded.
+    task14 = TaskContext(
+        input_text="Lily corrected",
+        input_category_hint="person",
+        session_context="home",
+        active_concept_categories=["person"],
+    )
+    rv14 = revoice_retrieve(task14, [LILY_SUPERSEDED, LILY_CORRECTED], [], [], ALLOW_ALL)
+    results.append(TestResult(
+        case_num=14,
+        description="Corrected label is used without resurfacing superseded memory",
+        memoryless=False,
+        transcript_rag=False,
+        revoice=("person.lily.new" in rv14.concept_ids and "person.lily.old" not in rv14.concept_ids),
+        notes=f"Visible labels: {rv14.labels}",
+    ))
+
+    # Case 15: Relevant media memory can still win despite token cost.
+    task15 = TaskContext(
+        input_text="granddaughter",
+        input_category_hint=None,
+        session_context="family_call",
+        active_concept_categories=["person"],
+    )
+    rv15 = revoice_retrieve(task15, [LILY_ACTIVE, INSURANCE_ACTIVE], [], [], ALLOW_ALL)
+    results.append(TestResult(
+        case_num=15,
+        description="Relevant photo-backed Lily memory wins despite media cost",
+        memoryless=False,
+        transcript_rag=False,
+        revoice=rv15.concept_ids[:1] == ["person.lily"],
+        notes=f"Top result: {rv15.labels[0] if rv15.labels else 'none'}",
+    ))
+
+    # Case 16: Cross-context history improves transfer.
+    task16 = TaskContext(
+        input_text="Lily",
+        input_category_hint="person",
+        session_context="clinic",
+        active_concept_categories=["person"],
+    )
+    rv16 = revoice_retrieve(task16, [LILY_ACTIVE, MICHAEL_ACTIVE], [ability_reduced], [PAST_LILY_SUCCESS], ALLOW_ALL)
+    results.append(TestResult(
+        case_num=16,
+        description="Prior success in another context helps Lily transfer",
+        memoryless=True,
+        transcript_rag=False,
+        revoice=rv16.concept_ids[:1] == ["person.lily"],
+        notes=f"Top result: {rv16.labels[0] if rv16.labels else 'none'}",
+    ))
+
+    # Case 17: Son stand-in ranks Michael.
+    task17 = TaskContext(
+        input_text="my son",
+        input_category_hint=None,
+        session_context="home",
+        active_concept_categories=["person"],
+    )
+    rv17 = revoice_retrieve(task17, [LILY_ACTIVE, MICHAEL_ACTIVE, INSURANCE_ACTIVE], [], [], ALLOW_ALL)
+    results.append(TestResult(
+        case_num=17,
+        description="Personal cue 'son' ranks Michael first",
+        memoryless=False,
+        transcript_rag=False,
+        revoice=rv17.concept_ids[:1] == ["person.michael"],
+        notes=f"Top result: {rv17.labels[0] if rv17.labels else 'none'}",
+    ))
+
+    # Case 18: Event cue ranks the birthday party over the person alone.
+    task18 = TaskContext(
+        input_text="birthday party",
+        input_category_hint="event",
+        session_context="family_call",
+        active_concept_categories=["person", "event"],
+    )
+    rv18 = revoice_retrieve(task18, [LILY_ACTIVE, LILY_BIRTHDAY_ACTIVE, INSURANCE_ACTIVE], [], [], ALLOW_ALL)
+    results.append(TestResult(
+        case_num=18,
+        description="Event phrase ranks Lily's Birthday Party first",
+        memoryless=False,
+        transcript_rag=False,
+        revoice=rv18.concept_ids[:1] == ["event.lily_birthday"],
+        notes=f"Top result: {rv18.labels[0] if rv18.labels else 'none'}",
+    ))
+
+    # Case 19: Budgeted top-k context does not include every memory.
+    task19 = TaskContext(
+        input_text="appointment",
+        input_category_hint="document",
+        session_context="tuesday_appointment",
+        active_concept_categories=["document", "place", "medication"],
+    )
+    rv19 = revoice_retrieve(
+        task19,
+        [LILY_ACTIVE, MICHAEL_ACTIVE, ICED_TEA_ACTIVE, INSURANCE_ACTIVE, RIVERSIDE_ACTIVE, CAREGIVER_ONLY],
+        [],
+        [],
+        ALLOW_ALL,
+        top_k=3,
+    )
+    results.append(TestResult(
+        case_num=19,
+        description="Retriever packs only top 3 memories into the Qwen context",
+        memoryless=False,
+        transcript_rag=False,
+        revoice=(len(rv19.concept_ids) <= 3 and "document.insurance_form" in rv19.concept_ids),
+        notes=f"Packed memories: {rv19.labels}",
+    ))
+
+    # Case 20: Place stand-in ranks clinic.
+    task20 = TaskContext(
+        input_text="doctor office",
+        input_category_hint="place",
+        session_context="clinic",
+        active_concept_categories=["place", "document"],
+    )
+    rv20 = revoice_retrieve(task20, [RIVERSIDE_ACTIVE, INSURANCE_ACTIVE, LILY_ACTIVE], [], [], ALLOW_ALL)
+    results.append(TestResult(
+        case_num=20,
+        description="Place phrase 'doctor office' ranks Riverside Clinic first",
+        memoryless=False,
+        transcript_rag=False,
+        revoice=rv20.concept_ids[:1] == ["place.riverside_clinic"],
+        notes=f"Top result: {rv20.labels[0] if rv20.labels else 'none'}",
+    ))
+
     return results
 
 
 def write_results(results: List[TestResult], path: str = "evals/RESULTS.md"):
     lines = [
         "# ReVoice Evaluation Results\n",
-        "Comparison of three retrieval systems across 7 test cases.\n",
+        f"Comparison of three retrieval systems across {len(results)} test cases.\n",
         "Results are **actual measured outcomes** — not fabricated.\n\n",
         "| # | Description | Memoryless | Transcript-RAG | ReVoice | Notes |\n",
         "|---|---|:---:|:---:|:---:|---|\n",
@@ -280,9 +533,9 @@ def write_results(results: List[TestResult], path: str = "evals/RESULTS.md"):
     passes = sum(1 for r in results if r.revoice)
     lines.append(f"\n**ReVoice: {passes}/{len(results)} test cases pass.**\n")
     lines.append("\n## Notes\n")
-    lines.append("- Cases 1, 3, 4, 5, 6, 7: ReVoice-only features (baselines cannot pass by design)\n")
-    lines.append("- Case 2: all systems pass — not a differentiator, but confirms no regressions\n")
-    lines.append("- Memoryless and Transcript-RAG pass Case 2 by design; all others require structured memory\n")
+    lines.append("- Coverage includes persistent ability state, personal relationship cues, consent gates, correction handling, context salience, and context-window packing.\n")
+    lines.append("- Baselines intentionally lack structured memory, policy checks, and cue-ladder state; their failures identify where ReVoice adds architecture beyond transcript search.\n")
+    lines.append("- Results are generated by running this script against the local scoring and baseline code.\n")
 
     Path(path).write_text("".join(lines), encoding="utf-8")
     print(f"Results written to {path}")

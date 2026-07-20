@@ -24,7 +24,7 @@ W2_SALIENCE = 0.20
 W3_RECOVERY_SIM = 0.20
 W4_UNCERTAINTY = 0.10
 W5_RECENCY_TRANSFER = 0.10
-W6_COST_PER_100_TOKENS = 0.15
+W6_COST_PER_100_TOKENS = 0.05
 
 
 @dataclass
@@ -53,6 +53,7 @@ class ConceptSnapshot:
     sensitivity: str
     media_url: Optional[str]
     estimated_tokens: int = 50       # text-only; media concepts get higher value
+    personal_cues: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -129,6 +130,9 @@ _CATEGORY_EXPANSIONS: dict[str, set] = {
 def _check_consent(concept: ConceptSnapshot, requester: str, operation: str,
                    policies: List[dict]) -> bool:
     """Return True if at least one matching allow policy exists."""
+    if concept.sensitivity == "caregiver_only" and requester != "caregiver":
+        return False
+
     for p in policies:
         if (p.get("subject") in (requester, "all") and
                 p.get("resource_scope") in (concept.category, "all") and
@@ -159,28 +163,38 @@ def _relevance(concept: ConceptSnapshot, task: TaskContext) -> float:
     if not text.strip():
         return 0.0
 
-    # 1. Category hint (strong external signal — session context flagged this category)
+    # 1. Personal cues from relationships/corrections. These bind a stand-in word
+    # like "granddaughter" to a specific stored concept, not just a broad category.
+    cue_hits = [
+        cue.lower()
+        for cue in concept.personal_cues
+        if cue and cue.lower() in text
+    ]
+    if cue_hits:
+        score += min(0.50, 0.35 + 0.10 * (len(cue_hits) - 1))
+
+    # 2. Category hint (strong external signal — session context flagged this category)
     if task.input_category_hint and task.input_category_hint == concept.category:
         score += 0.35
 
-    # 2. Semantic category expansion — the key mechanism for word-finding substitutions
+    # 3. Semantic category expansion — the key mechanism for word-finding substitutions
     expansions = _CATEGORY_EXPANSIONS.get(concept.category, set())
     matched_exp = input_words & expansions
     if matched_exp:
         # Scale with number of matched expansion words, capped at 0.35
         score += min(0.35, 0.18 * len(matched_exp))
 
-    # 3a. Exact label in input text (strongest direct signal)
+    # 4a. Exact label in input text (strongest direct signal)
     if label in text:
         score += 0.40
-    # 3b. Any significant label word appears in the input
+    # 4b. Any significant label word appears in the input
     elif any(w in text for w in label_words if len(w) > 3):
         score += 0.25
-    # 3c. Any overlap of label tokens with input tokens
+    # 4c. Any overlap of label tokens with input tokens
     elif label_words & input_words:
         score += 0.12
 
-    # 4. Fuzzy token-level matching (handles typos and partial words)
+    # 5. Fuzzy token-level matching (handles typos and partial words)
     best_fuzzy = 0.0
     for iw in input_words:
         if len(iw) < 4:

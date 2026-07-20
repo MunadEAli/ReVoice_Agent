@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import type { ChangeEvent } from "react";
 import { api } from "../api";
 import type { Candidate } from "../api";
 import MemoryInspector from "./MemoryInspector";
@@ -20,19 +21,28 @@ const RUNG_NAMES: Record<number, string> = {
 const CONTEXTS = [
   { value: "general", label: "General" },
   { value: "home", label: "Home" },
-  { value: "cafe_visit", label: "Café visit" },
+  { value: "cafe_visit", label: "Cafe visit" },
   { value: "tuesday_appointment", label: "Doctor's appointment" },
   { value: "clinic", label: "Clinic" },
   { value: "family_call", label: "Family call" },
 ];
 
+const CONTEXT_CATEGORIES: Record<string, string[]> = {
+  general: ["person", "document", "order", "place", "event"],
+  home: ["person", "document", "order", "event"],
+  cafe_visit: ["order", "person", "place"],
+  tuesday_appointment: ["document", "place", "medication"],
+  clinic: ["document", "place", "medication"],
+  family_call: ["person", "event"],
+};
+
 const PLACEHOLDERS = [
-  "e.g. granddaughter…",
-  "e.g. the blue paper…",
-  "e.g. my usual drink…",
-  "e.g. that place I go…",
-  "e.g. the one I take each morning…",
-  "e.g. the party coming up…",
+  "e.g. granddaughter...",
+  "e.g. the blue paper...",
+  "e.g. my usual drink...",
+  "e.g. that place I go...",
+  "e.g. the one I take each morning...",
+  "e.g. the party coming up...",
 ];
 
 export default function SessionScreen({ ownerId, userName }: Props) {
@@ -47,11 +57,12 @@ export default function SessionScreen({ ownerId, userName }: Props) {
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [confirmedLabel, setConfirmedLabel] = useState<string | null>(null);
   const [cue, setCue] = useState<{
-    rung: number; cue_type: string; cue_payload: Record<string, unknown>; ability_state: any;
+    rung: number; cue_type: string; cue_payload: Record<string, unknown>; ability_state: unknown;
   } | null>(null);
   const [currentRung, setCurrentRung] = useState<number | null>(null);
   const [cueOutcome, setCueOutcome] = useState<string | null>(null);
   const [activeConcept, setActiveConcept] = useState<{ id: string; label: string } | null>(null);
+  const [revealedConceptIds, setRevealedConceptIds] = useState<Set<string>>(() => new Set());
   const [placeholderIdx] = useState(() => Math.floor(Math.random() * PLACEHOLDERS.length));
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -64,7 +75,7 @@ export default function SessionScreen({ ownerId, userName }: Props) {
     return s.session_id;
   }
 
-  const handleImagePick = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImagePick = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImageName(file.name);
@@ -91,6 +102,7 @@ export default function SessionScreen({ ownerId, userName }: Props) {
     setCurrentRung(null);
     setCueOutcome(null);
     setActiveConcept(null);
+    setRevealedConceptIds(new Set());
     try {
       const sid = await ensureSession();
       const result = await api.interpret({
@@ -99,13 +111,13 @@ export default function SessionScreen({ ownerId, userName }: Props) {
         input_text: inputText || "(image provided)",
         context,
         image_url: imageUrl ?? undefined,
-        active_categories: ["person", "document", "order", "place", "medication", "event"],
+        active_categories: CONTEXT_CATEGORIES[context] ?? CONTEXT_CATEGORIES.general,
       });
       setAttemptId(result.attempt_id);
       setCandidates(result.candidates);
       setPhase("candidates");
-    } catch (e: any) {
-      setError(e.message ?? "Something went wrong");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
       setPhase("error");
     }
   }
@@ -116,8 +128,8 @@ export default function SessionScreen({ ownerId, userName }: Props) {
       await api.confirmIntent(attemptId, concept_id, "confirmed", ownerId);
       setConfirmedLabel(label);
       setPhase("confirmed");
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Confirmation failed");
     }
   }
 
@@ -138,8 +150,8 @@ export default function SessionScreen({ ownerId, userName }: Props) {
       setCue(result);
       setCurrentRung(result.rung);
       setPhase("cue");
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Could not load hint");
     }
   }
 
@@ -167,6 +179,7 @@ export default function SessionScreen({ ownerId, userName }: Props) {
     setCurrentRung(null);
     setCueOutcome(null);
     setActiveConcept(null);
+    setRevealedConceptIds(new Set());
     setSessionId(null);
     setAttemptId(null);
     setTimeout(() => inputRef.current?.focus(), 50);
@@ -179,140 +192,178 @@ export default function SessionScreen({ ownerId, userName }: Props) {
 
     return (
       <div className="cue-card">
-        <div className="cue-rung-badge">Rung {cue.rung} of 4 — {rungName}</div>
+        <div className="cue-card-top">
+          <div>
+            <div className="cue-rung-badge">Step {cue.rung} of 4 - {rungName}</div>
+            {(p.strategy as string) && <h3 className="cue-strategy">{p.strategy as string}</h3>}
+          </div>
+          <div className="cue-pill-stack">
+            {(p.category_hint as string) && <span className="cue-category-pill">{p.category_hint as string}</span>}
+            {(p.cue_source as string) && (
+              <span className="cue-source-pill">
+                {(p.cue_source as string).includes("qwen") ? "Qwen cue plan" : "Rule cue plan"}
+              </span>
+            )}
+          </div>
+        </div>
 
         {cue.rung === 1 && (
-          <div>
+          <div className="cue-media-block">
             {(p.media_url as string) && (
-              <div style={{ marginBottom: 12 }}>
+              <div className="cue-photo-frame">
                 <img
                   src={p.media_url as string}
-                  alt="relationship photo"
-                  style={{ width: 88, height: 88, borderRadius: "50%", objectFit: "cover", display: "block" }}
+                  alt="relationship"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
               </div>
             )}
-            <p style={{ fontSize: "1.05rem" }}>
+            <p className="cue-text">
               {(p.relationship_label as string) ?? `Think about the ${activeConcept?.label ?? "concept"} and who it is to you.`}
             </p>
           </div>
         )}
 
         {cue.rung === 2 && (
-          <p style={{ fontSize: "1.05rem", fontStyle: "italic" }}>
+          <p className="cue-text cue-text-quote">
             {(p.context_frame as string) ?? `Think about the context where you use "${activeConcept?.label ?? "this"}".`}
           </p>
         )}
 
         {cue.rung === 3 && (
-          <div>
-            <p style={{ color: "var(--muted)", marginBottom: 8, fontSize: "0.9rem" }}>
-              It starts with…
-            </p>
-            <p style={{ fontSize: "2.4rem", fontWeight: 800, letterSpacing: 3, color: "var(--accent)" }}>
-              {p.letters as string}
-            </p>
+          <div className="cue-letter-block">
+            <p>{(p.letter_prompt as string) ?? "It starts with"}...</p>
+            <strong>{p.letters as string}</strong>
           </div>
         )}
 
         {cue.rung === 4 && (
-          <div>
-            <p style={{ color: "var(--muted)", marginBottom: 8, fontSize: "0.9rem" }}>
-              The word or phrase is:
-            </p>
-            <p style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--accent)" }}>
-              {p.revealed_label as string}
-            </p>
+          <div className="cue-reveal-block">
+            <p>The word or phrase is:</p>
+            <strong>{p.revealed_label as string}</strong>
           </div>
         )}
 
-        <div className="candidate-actions" style={{ marginTop: 18 }}>
+        {Array.isArray(p.cue_lines) && (
+          <ul className="cue-line-list">
+            {(p.cue_lines as string[]).map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        )}
+
+        {(p.caregiver_tip as string) && (
+          <div className="cue-caregiver-tip">
+            {(p.caregiver_tip as string)}
+          </div>
+        )}
+
+        <div className="candidate-actions cue-actions">
           <button className="btn-primary" onClick={() => handleCueOutcome("successful")}>
             Yes, I remember
           </button>
-          <button className="btn-ghost" onClick={() => handleCueOutcome("no_retrieval")}
-            disabled={cue.rung >= 4}>
-            {cue.rung < 4 ? "Not yet — next hint" : "Not quite"}
+          <button
+            className="btn-ghost"
+            onClick={() => handleCueOutcome("no_retrieval")}
+            disabled={cue.rung >= 4}
+          >
+            {cue.rung < 4 ? "Not yet - next hint" : "Not quite"}
           </button>
         </div>
       </div>
     );
   };
 
+  const revealConcept = (conceptId: string) => {
+    setRevealedConceptIds((prev) => {
+      const next = new Set(prev);
+      next.add(conceptId);
+      return next;
+    });
+  };
+
+  const categoryLabel = (conceptId: string) => {
+    const category = conceptId.split(".")[0];
+    return {
+      person: "person",
+      document: "document",
+      order: "drink/order",
+      place: "place",
+      medication: "medication",
+      event: "event",
+    }[category] ?? "memory";
+  };
+
   return (
     <div className="session-layout">
-      {/* Left: session content */}
-      <div>
-        <div style={{ marginBottom: 20 }}>
-          <h2 style={{ fontSize: "1.4rem", fontWeight: 700, marginBottom: 4 }}>
-            What are you trying to say, {userName}?
-          </h2>
-          <p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
-            Describe it your way — a stand-in word, a partial phrase, or a photo.
+      <div className="session-workspace">
+        <section className="session-intro">
+          <div>
+            <span className="session-eyebrow">Live session</span>
+            <h2>What are you trying to say, {userName}?</h2>
+          </div>
+          <p>
+            Describe it your way - a stand-in word, a partial phrase, or a photo.
             ReVoice will suggest what you might mean.
           </p>
-        </div>
+        </section>
 
         {phase !== "confirmed" && (
           <>
-            {/* Context selector */}
-            <div className="context-selector-row">
-              <label className="context-label" htmlFor="ctx-select">Context:</label>
-              <select
-                id="ctx-select"
-                value={context}
-                onChange={(e) => setContext(e.target.value)}
-                className="context-select"
-              >
-                {CONTEXTS.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </select>
+            <div className="composer-panel">
+              <div className="context-selector-row">
+                <label className="context-label" htmlFor="ctx-select">Context</label>
+                <select
+                  id="ctx-select"
+                  value={context}
+                  onChange={(e) => setContext(e.target.value)}
+                  className="context-select"
+                >
+                  {CONTEXTS.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="input-area">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  placeholder={PLACEHOLDERS[placeholderIdx]}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
+                  disabled={phase === "loading"}
+                  aria-label="Describe what you mean"
+                />
+
+                <button
+                  type="button"
+                  className="btn-ghost image-upload-btn"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={phase === "loading"}
+                  title="Add a photo to help identify the concept"
+                >
+                  Photo
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="visually-hidden"
+                  onChange={handleImagePick}
+                />
+
+                <button
+                  className="btn-primary"
+                  onClick={handleSubmit}
+                  disabled={phase === "loading" || (!inputText.trim() && !imageUrl)}
+                >
+                  {phase === "loading" ? "Thinking..." : "Find it"}
+                </button>
+              </div>
             </div>
 
-            {/* Input area */}
-            <div className="input-area">
-              <input
-                ref={inputRef}
-                type="text"
-                placeholder={PLACEHOLDERS[placeholderIdx]}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
-                disabled={phase === "loading"}
-                aria-label="Describe what you mean"
-              />
-
-              {/* Image upload button */}
-              <button
-                type="button"
-                className="btn-ghost image-upload-btn"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={phase === "loading"}
-                title="Add a photo to help identify the concept"
-                style={{ minWidth: 52, padding: "0 14px" }}
-              >
-                📷
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={handleImagePick}
-              />
-
-              <button
-                className="btn-primary"
-                onClick={handleSubmit}
-                disabled={phase === "loading" || (!inputText.trim() && !imageUrl)}
-              >
-                {phase === "loading" ? "Thinking…" : "Find it"}
-              </button>
-            </div>
-
-            {/* Image preview */}
             {imageUrl && (
               <div className="image-preview-row">
                 <img
@@ -320,18 +371,18 @@ export default function SessionScreen({ ownerId, userName }: Props) {
                   alt="uploaded"
                   className="image-preview-thumb"
                 />
-                <div>
-                  <div style={{ fontSize: "0.85rem", fontWeight: 600 }}>{imageName}</div>
-                  <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+                <div className="image-preview-copy">
+                  <div className="image-preview-name">{imageName}</div>
+                  <div className="image-preview-meta">
                     Using vision model (qwen-vl-max)
                   </div>
                 </div>
                 <button
-                  className="btn-ghost"
+                  className="btn-ghost image-remove-btn"
                   onClick={clearImage}
-                  style={{ minWidth: 40, padding: "4px 12px", fontSize: "0.85rem" }}
+                  aria-label="Remove image"
                 >
-                  ✕
+                  X
                 </button>
               </div>
             )}
@@ -340,19 +391,18 @@ export default function SessionScreen({ ownerId, userName }: Props) {
 
         {error && <div className="status-bar error">{error}</div>}
 
-        {/* Confirmed state */}
         {phase === "confirmed" && confirmedLabel && (
           <div>
             <div className="status-bar info">
-              Confirmed: <strong>{confirmedLabel}</strong> — this message is ready to use.
+              Confirmed: <strong>{confirmedLabel}</strong> - this message is ready to use.
             </div>
             <div className="candidate-card confirmed">
               <div className="candidate-label">{confirmedLabel}</div>
               <div className="candidate-why">
-                Great — ReVoice has recorded this retrieval and will update the memory path.
+                Great - ReVoice has recorded this retrieval and will update the memory path.
               </div>
             </div>
-            <div style={{ marginTop: 16 }}>
+            <div className="session-actions-row">
               <button className="btn-primary" onClick={handleReset}>
                 Start a new attempt
               </button>
@@ -360,19 +410,31 @@ export default function SessionScreen({ ownerId, userName }: Props) {
           </div>
         )}
 
-        {/* Candidates */}
         {(phase === "candidates" || phase === "cue") && candidates.length > 0 && (
-          <div>
-            <p style={{ color: "var(--muted)", marginBottom: 12, fontSize: "0.9rem" }}>
-              <strong>Suggestions</strong> — confirm the right one, or ask for a hint:
+          <section className="suggestions-section">
+            <p className="suggestions-heading">
+              <strong>Suggestions</strong> - confirm the right one, or ask for a hint.
             </p>
             {candidates.map((c, i) => (
               <div
                 className={`candidate-card ${phase === "cue" && activeConcept?.id === c.concept_id ? "cue-active" : ""}`}
                 key={i}
               >
-                <div className="candidate-label">{c.label}</div>
-                <div className="candidate-why">{c.why}</div>
+                {revealedConceptIds.has(c.concept_id) ? (
+                  <>
+                    <div className="candidate-label">{c.label}</div>
+                    <div className="candidate-why">{c.why}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="candidate-label muted-answer">
+                      Possible {categoryLabel(c.concept_id)} match
+                    </div>
+                    <div className="candidate-why">
+                      Answer hidden for recall practice. Try a hint, or reveal when you are ready.
+                    </div>
+                  </>
+                )}
                 {c.score_breakdown && (
                   <div className="candidate-score-mini">
                     Score: {(+(c.memory_score ?? 0)).toFixed(2)}
@@ -383,7 +445,7 @@ export default function SessionScreen({ ownerId, userName }: Props) {
                     className="btn-primary"
                     onClick={() => handleConfirm(c.concept_id, c.label)}
                   >
-                    Yes, this is it
+                    Use this match
                   </button>
                   <button
                     className="btn-ghost"
@@ -391,22 +453,27 @@ export default function SessionScreen({ ownerId, userName }: Props) {
                   >
                     Give me a hint
                   </button>
+                  {!revealedConceptIds.has(c.concept_id) && (
+                    <button
+                      className="btn-ghost"
+                      onClick={() => revealConcept(c.concept_id)}
+                    >
+                      Reveal answer
+                    </button>
+                  )}
                 </div>
+                {phase === "cue" && activeConcept?.id === c.concept_id && renderCueContent()}
               </div>
             ))}
-            <div style={{ marginTop: 8 }}>
+            <div className="session-actions-row">
               <button className="btn-ghost" onClick={handleNoneOfThese}>
                 None of these
               </button>
             </div>
-          </div>
+          </section>
         )}
-
-        {/* Cue card — shown below candidates when a hint is active */}
-        {phase === "cue" && renderCueContent()}
       </div>
 
-      {/* Right: Memory Inspector */}
       <MemoryInspector attemptId={attemptId} />
     </div>
   );

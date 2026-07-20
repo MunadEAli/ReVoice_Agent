@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from packages.schemas.db import get_db
-from packages.schemas.models import AbilityState, Attempt, Concept, Session as SessionModel
+from packages.schemas.models import AbilityState, Attempt, Concept, Session as SessionModel, CuePreference
+from services.api.orchestrator import _summarize_cue_preferences
 from services.qwen.client import generate_review_summary
 
 router = APIRouter()
@@ -49,9 +50,17 @@ def get_review(user_id: str, db: Session = Depends(get_db)):
     ]
 
     summary = generate_review_summary(user_id, ability_states, attempts)
+    cue_preferences = _summarize_cue_preferences(
+        db.query(CuePreference)
+        .filter(CuePreference.owner_id == user_id)
+        .order_by(CuePreference.score.desc(), CuePreference.successes.desc())
+        .limit(8)
+        .all()
+    )
     return {
         "user_id": user_id,
         "summary": summary,
         "ability_states": ability_states,
+        "cue_preferences": cue_preferences,
         "session_count": len(session_rows),
     }
